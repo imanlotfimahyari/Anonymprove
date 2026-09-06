@@ -1,0 +1,11 @@
+services:
+  api:
+    build:
+      context: ./services/api
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-local}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+      JWT_TTL_MINUTES: ${JWT_TTL_MINUTES:-60}
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
