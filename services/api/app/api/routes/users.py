@@ -1,49 +1,36 @@
-from dataclasses import dataclass
-from uuid import UUID, uuid4
+from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
+from sqlalchemy.orm import Session
 
+from app.api.dependencies import get_current_user
 from app.core.config import Settings, get_settings
-from app.core.security import Principal, create_access_token, get_current_principal
+from app.core.security import create_access_token
+from app.db.session import get_db
+from app.models.identity import User
 from app.schemas.users import ProfileResponse, SessionResponse
 
 router = APIRouter(prefix="/api/v1/users", tags=["users"])
 
 
-@dataclass(frozen=True, slots=True)
-class SessionState:
-    alias: str
-    group_id: UUID
-
-
-# M0 only. Persistent identity/group storage is introduced in M1.
-_sessions: dict[UUID, SessionState] = {}
-
-
 @router.post("/session", response_model=SessionResponse, status_code=status.HTTP_201_CREATED)
-def create_session(settings: Settings = Depends(get_settings)) -> SessionResponse:
+def create_session(
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> SessionResponse:
     user_id = uuid4()
-    group_id = uuid4()
-    alias = f"User-{str(user_id)[:8]}"
-
-    principal = Principal(user_id=user_id, group_id=group_id)
-    _sessions[user_id] = SessionState(alias=alias, group_id=group_id)
+    user = User(id=user_id, alias=f"User-{str(user_id)[:8]}")
+    db.add(user)
+    db.commit()
+    db.refresh(user)
 
     return SessionResponse(
-        session_token=create_access_token(principal, settings),
-        alias=alias,
-        group_id=group_id,
+        session_token=create_access_token(user.id, settings),
+        user_id=user.id,
+        alias=user.alias,
     )
 
 
 @router.get("/me", response_model=ProfileResponse)
-def get_me(principal: Principal = Depends(get_current_principal)) -> ProfileResponse:
-    state = _sessions.get(principal.user_id)
-    if state is None or state.group_id != principal.group_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Session not found",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    return ProfileResponse(alias=state.alias, group_id=state.group_id)
+def get_me(user: User = Depends(get_current_user)) -> ProfileResponse:
+    return ProfileResponse(user_id=user.id, alias=user.alias)

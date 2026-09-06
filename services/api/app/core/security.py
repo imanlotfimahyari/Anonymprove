@@ -13,14 +13,12 @@ bearer = HTTPBearer(auto_error=False)
 
 class Principal(BaseModel):
     user_id: UUID
-    group_id: UUID
 
 
-def create_access_token(principal: Principal, settings: Settings) -> str:
+def create_access_token(user_id: UUID, settings: Settings) -> str:
     now = datetime.now(UTC)
     payload = {
-        "sub": str(principal.user_id),
-        "groupId": str(principal.group_id),
+        "sub": str(user_id),
         "iat": now,
         "exp": now + timedelta(minutes=settings.jwt_ttl_minutes),
     }
@@ -31,7 +29,7 @@ def create_access_token(principal: Principal, settings: Settings) -> str:
     )
 
 
-def _unauthorized(detail: str) -> HTTPException:
+def unauthorized(detail: str) -> HTTPException:
     return HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail=detail,
@@ -44,7 +42,7 @@ def get_current_principal(
     settings: Settings = Depends(get_settings),
 ) -> Principal:
     if credentials is None:
-        raise _unauthorized("Missing bearer token")
+        raise unauthorized("Missing bearer token")
 
     try:
         payload = jwt.decode(
@@ -52,8 +50,8 @@ def get_current_principal(
             settings.jwt_secret.get_secret_value(),
             algorithms=[settings.jwt_algorithm],
         )
-        return Principal(user_id=payload["sub"], group_id=payload["groupId"])
+        return Principal(user_id=payload["sub"])
     except jwt.ExpiredSignatureError as exc:
-        raise _unauthorized("Session expired") from exc
+        raise unauthorized("Session expired") from exc
     except (jwt.InvalidTokenError, KeyError, ValidationError) as exc:
-        raise _unauthorized("Invalid token") from exc
+        raise unauthorized("Invalid token") from exc
