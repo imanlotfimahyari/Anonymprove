@@ -1,4 +1,21 @@
 services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-privacy_feedback}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-privacy_feedback}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-privacy_feedback} -d ${POSTGRES_DB:-privacy_feedback}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
   api:
     build:
       context: ./services/api
@@ -6,6 +23,16 @@ services:
       ENVIRONMENT: ${ENVIRONMENT:-local}
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
       JWT_TTL_MINUTES: ${JWT_TTL_MINUTES:-60}
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-privacy_feedback}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-privacy_feedback}
+    depends_on:
+      db:
+        condition: service_healthy
+    command: >-
+      sh -c "alembic -c alembic.ini upgrade head &&
+      uvicorn app.main:app --host 0.0.0.0 --port 8000"
     ports:
       - "8000:8000"
     restart: unless-stopped
+
+volumes:
+  postgres-data:

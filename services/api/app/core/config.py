@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     jwt_secret: SecretStr
     jwt_ttl_minutes: int = 60
     jwt_algorithm: str = "HS256"
+    database_url: str
 
     model_config = SettingsConfigDict(
         env_file=".env",

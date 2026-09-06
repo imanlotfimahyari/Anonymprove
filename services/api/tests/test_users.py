@@ -14,7 +14,8 @@ def test_create_session_and_get_profile(client: TestClient) -> None:
     body = session_response.json()
     assert body["alias"].startswith("User-")
     assert body["sessionToken"]
-    assert body["groupId"]
+    assert body["userId"]
+    assert "groupId" not in body
 
     profile_response = client.get(
         "/api/v1/users/me",
@@ -23,8 +24,8 @@ def test_create_session_and_get_profile(client: TestClient) -> None:
 
     assert profile_response.status_code == 200
     assert profile_response.json() == {
+        "userId": body["userId"],
         "alias": body["alias"],
-        "groupId": body["groupId"],
     }
 
 
@@ -51,7 +52,6 @@ def test_profile_rejects_expired_token(client: TestClient) -> None:
     token = jwt.encode(
         {
             "sub": str(uuid4()),
-            "groupId": str(uuid4()),
             "iat": now - timedelta(minutes=2),
             "exp": now - timedelta(minutes=1),
         },
@@ -68,13 +68,12 @@ def test_profile_rejects_expired_token(client: TestClient) -> None:
     assert response.json()["detail"] == "Session expired"
 
 
-def test_profile_rejects_signed_token_without_server_session(client: TestClient) -> None:
+def test_profile_rejects_signed_token_without_persisted_user(client: TestClient) -> None:
     settings = get_settings()
     now = datetime.now(UTC)
     token = jwt.encode(
         {
             "sub": str(uuid4()),
-            "groupId": str(uuid4()),
             "iat": now,
             "exp": now + timedelta(minutes=5),
         },
