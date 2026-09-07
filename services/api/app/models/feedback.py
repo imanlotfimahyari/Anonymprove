@@ -21,12 +21,23 @@ from app.db.base import Base
 
 class Questionnaire(Base):
     __tablename__ = "questionnaires"
-    __table_args__ = (UniqueConstraint("slug", "version", name="uq_questionnaires_slug_version"),)
+    __table_args__ = (
+        UniqueConstraint("slug", "version", name="uq_questionnaires_slug_version"),
+        CheckConstraint("status IN ('draft', 'published')", name="ck_questionnaires_status"),
+    )
 
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    group_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("groups.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    created_by_user_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     slug: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(120), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
     version: Mapped[int] = mapped_column(Integer, nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="published")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -39,7 +50,11 @@ class Question(Base):
         UniqueConstraint(
             "questionnaire_id", "position", name="uq_questions_questionnaire_position"
         ),
-        CheckConstraint("kind IN ('scale', 'text')", name="ck_questions_kind"),
+        CheckConstraint(
+            "kind IN ('scale', 'text', 'single_choice', 'multiple_choice', "
+            "'short_text', 'long_text', 'description')",
+            name="ck_questions_kind",
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
@@ -47,12 +62,26 @@ class Question(Base):
         ForeignKey("questionnaires.id", ondelete="CASCADE"), nullable=False, index=True
     )
     key: Mapped[str] = mapped_column(String(64), nullable=False)
-    prompt: Mapped[str] = mapped_column(String(240), nullable=False)
-    kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    prompt: Mapped[str] = mapped_column(String(500), nullable=False)
+    kind: Mapped[str] = mapped_column(String(24), nullable=False)
     position: Mapped[int] = mapped_column(Integer, nullable=False)
     required: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     min_score: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
     max_score: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
+
+
+class QuestionOption(Base):
+    __tablename__ = "question_options"
+    __table_args__ = (
+        UniqueConstraint("question_id", "position", name="uq_question_options_question_position"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    question_id: Mapped[UUID] = mapped_column(
+        ForeignKey("questions.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    label: Mapped[str] = mapped_column(String(160), nullable=False)
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
 
 
 class FeedbackRound(Base):
@@ -130,9 +159,8 @@ class Answer(Base):
     __table_args__ = (
         UniqueConstraint("response_id", "question_id", name="uq_answers_response_question"),
         CheckConstraint(
-            "(score IS NOT NULL AND text_value IS NULL) OR "
-            "(score IS NULL AND text_value IS NOT NULL)",
-            name="ck_answers_exactly_one_value",
+            "NOT (score IS NOT NULL AND text_value IS NOT NULL)",
+            name="ck_answers_at_most_one_scalar_value",
         ),
     )
 
@@ -145,3 +173,14 @@ class Answer(Base):
     )
     score: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
     text_value: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class AnswerChoiceOption(Base):
+    __tablename__ = "answer_choice_options"
+
+    answer_id: Mapped[UUID] = mapped_column(
+        ForeignKey("answers.id", ondelete="CASCADE"), primary_key=True
+    )
+    option_id: Mapped[UUID] = mapped_column(
+        ForeignKey("question_options.id", ondelete="RESTRICT"), primary_key=True, index=True
+    )

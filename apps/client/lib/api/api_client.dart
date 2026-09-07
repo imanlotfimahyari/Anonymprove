@@ -6,46 +6,61 @@ import '../models/models.dart';
 
 abstract class AnonymproveApi {
   Future<SessionInfo> createSession();
-
   Future<List<GroupSummary>> listGroups(String sessionToken);
-
   Future<GroupSummary> createGroup(String sessionToken, String name);
-
   Future<GroupSummary> joinGroup(String sessionToken, String joinCode);
-
+  Future<List<QuestionnaireSummary>> listQuestionnaires(
+    String sessionToken,
+    String groupId,
+  );
+  Future<QuestionnaireSummary> createQuestionnaire(
+    String sessionToken,
+    String groupId,
+    QuestionnaireUpsertInput input,
+  );
+  Future<QuestionnaireSummary> updateQuestionnaire(
+    String sessionToken,
+    String groupId,
+    String questionnaireId,
+    QuestionnaireUpsertInput input,
+  );
+  Future<QuestionnaireSummary> publishQuestionnaire(
+    String sessionToken,
+    String groupId,
+    String questionnaireId,
+  );
+  Future<QuestionnaireSummary> createQuestionnaireVersion(
+    String sessionToken,
+    String groupId,
+    String questionnaireId,
+  );
   Future<List<FeedbackRoundSummary>> listFeedbackRounds(
     String sessionToken,
     String groupId,
   );
-
   Future<FeedbackRoundSummary> createFeedbackRound(
     String sessionToken,
-    String groupId,
-  );
-
+    String groupId, {
+    String? questionnaireId,
+  });
   Future<FeedbackRoundDetail> getFeedbackRound(
     String sessionToken,
     String roundId,
   );
-
   Future<FeedbackRoundSummary> openFeedbackRound(
     String sessionToken,
     String roundId,
   );
-
   Future<FeedbackRoundSummary> closeFeedbackRound(
     String sessionToken,
     String roundId,
   );
-
   Future<String> claimResponseCredential(String sessionToken, String roundId);
-
   Future<void> submitFeedback(
     String roundId,
     String responseToken,
     List<AnswerSubmission> answers,
   );
-
   Future<FeedbackResults> getFeedbackResults(
     String sessionToken,
     String roundId,
@@ -54,10 +69,8 @@ abstract class AnonymproveApi {
 
 class ApiException implements Exception {
   const ApiException(this.message, {this.statusCode});
-
   final String message;
   final int? statusCode;
-
   @override
   String toString() => message;
 }
@@ -111,6 +124,82 @@ class HttpAnonymproveApi implements AnonymproveApi {
   }
 
   @override
+  Future<List<QuestionnaireSummary>> listQuestionnaires(
+    String sessionToken,
+    String groupId,
+  ) async {
+    final json = await _request(
+      'GET',
+      '/api/v1/groups/$groupId/questionnaires',
+      sessionToken: sessionToken,
+    );
+    return (json as List<dynamic>)
+        .map(
+          (item) => QuestionnaireSummary.fromJson(item as Map<String, dynamic>),
+        )
+        .toList(growable: false);
+  }
+
+  @override
+  Future<QuestionnaireSummary> createQuestionnaire(
+    String sessionToken,
+    String groupId,
+    QuestionnaireUpsertInput input,
+  ) async {
+    final json = await _request(
+      'POST',
+      '/api/v1/groups/$groupId/questionnaires',
+      sessionToken: sessionToken,
+      body: input.toJson(),
+    );
+    return QuestionnaireSummary.fromJson(json as Map<String, dynamic>);
+  }
+
+  @override
+  Future<QuestionnaireSummary> updateQuestionnaire(
+    String sessionToken,
+    String groupId,
+    String questionnaireId,
+    QuestionnaireUpsertInput input,
+  ) async {
+    final json = await _request(
+      'PUT',
+      '/api/v1/groups/$groupId/questionnaires/$questionnaireId',
+      sessionToken: sessionToken,
+      body: input.toJson(),
+    );
+    return QuestionnaireSummary.fromJson(json as Map<String, dynamic>);
+  }
+
+  @override
+  Future<QuestionnaireSummary> publishQuestionnaire(
+    String sessionToken,
+    String groupId,
+    String questionnaireId,
+  ) async {
+    final json = await _request(
+      'POST',
+      '/api/v1/groups/$groupId/questionnaires/$questionnaireId/publish',
+      sessionToken: sessionToken,
+    );
+    return QuestionnaireSummary.fromJson(json as Map<String, dynamic>);
+  }
+
+  @override
+  Future<QuestionnaireSummary> createQuestionnaireVersion(
+    String sessionToken,
+    String groupId,
+    String questionnaireId,
+  ) async {
+    final json = await _request(
+      'POST',
+      '/api/v1/groups/$groupId/questionnaires/$questionnaireId/versions',
+      sessionToken: sessionToken,
+    );
+    return QuestionnaireSummary.fromJson(json as Map<String, dynamic>);
+  }
+
+  @override
   Future<List<FeedbackRoundSummary>> listFeedbackRounds(
     String sessionToken,
     String groupId,
@@ -130,13 +219,20 @@ class HttpAnonymproveApi implements AnonymproveApi {
   @override
   Future<FeedbackRoundSummary> createFeedbackRound(
     String sessionToken,
-    String groupId,
-  ) async {
+    String groupId, {
+    String? questionnaireId,
+  }) async {
+    final body = <String, dynamic>{'minResponses': 3};
+    if (questionnaireId == null) {
+      body['questionnaireSlug'] = 'core-feedback-v1';
+    } else {
+      body['questionnaireId'] = questionnaireId;
+    }
     final json = await _request(
       'POST',
       '/api/v1/groups/$groupId/feedback-rounds',
       sessionToken: sessionToken,
-      body: const {'questionnaireSlug': 'core-feedback-v1', 'minResponses': 3},
+      body: body,
     );
     return FeedbackRoundSummary.fromJson(json as Map<String, dynamic>);
   }
@@ -232,29 +328,25 @@ class HttpAnonymproveApi implements AnonymproveApi {
       if (sessionToken != null) 'Authorization': 'Bearer $sessionToken',
       'X-Response-Token': ?responseToken,
     };
-
     final uri = Uri.parse('$_baseUrl$path');
     final encodedBody = body == null ? null : jsonEncode(body);
-
     late final http.Response response;
     if (method == 'GET') {
       response = await _client.get(uri, headers: headers);
     } else if (method == 'POST') {
       response = await _client.post(uri, headers: headers, body: encodedBody);
+    } else if (method == 'PUT') {
+      response = await _client.put(uri, headers: headers, body: encodedBody);
     } else {
       throw ArgumentError.value(method, 'method', 'Unsupported HTTP method');
     }
-
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw ApiException(
         _errorMessage(response),
         statusCode: response.statusCode,
       );
     }
-
-    if (response.body.isEmpty) {
-      return null;
-    }
+    if (response.body.isEmpty) return null;
     return jsonDecode(response.body);
   }
 
@@ -265,7 +357,7 @@ class HttpAnonymproveApi implements AnonymproveApi {
         return decoded['detail'] as String;
       }
     } on FormatException {
-      // Fall back to a generic message below.
+      // Fall through.
     }
     return 'Request failed (${response.statusCode})';
   }
