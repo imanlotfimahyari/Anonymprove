@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'api/api_client.dart';
 import 'models/models.dart';
+import 'questionnaires/questionnaire_pages.dart';
 
 const _defaultApiBaseUrl = String.fromEnvironment(
   'API_BASE_URL',
@@ -365,13 +366,22 @@ class _GroupPageState extends State<GroupPage> {
   Future<void> _createRound() async {
     setState(() => _creating = true);
     try {
-      final round = await widget.api.createFeedbackRound(
+      final questionnaires = await widget.api.listQuestionnaires(
         widget.session.sessionToken,
         widget.group.id,
       );
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
+      final published = questionnaires
+          .where((item) => item.status == 'published')
+          .toList();
+      final selected = await _selectQuestionnaireDialog(context, published);
+      if (selected == null || !mounted) return;
+      final round = await widget.api.createFeedbackRound(
+        widget.session.sessionToken,
+        widget.group.id,
+        questionnaireId: selected.id,
+      );
+      if (!mounted) return;
       await Navigator.of(context).push<void>(
         MaterialPageRoute(
           builder: (_) => RoundPage(
@@ -381,17 +391,11 @@ class _GroupPageState extends State<GroupPage> {
           ),
         ),
       );
-      if (mounted) {
-        await _reload();
-      }
+      if (mounted) await _reload();
     } catch (error) {
-      if (mounted) {
-        _showError(context, error);
-      }
+      if (mounted) _showError(context, error);
     } finally {
-      if (mounted) {
-        setState(() => _creating = false);
-      }
+      if (mounted) setState(() => _creating = false);
     }
   }
 
@@ -401,6 +405,21 @@ class _GroupPageState extends State<GroupPage> {
       appBar: AppBar(
         title: Text(widget.group.name),
         actions: [
+          IconButton(
+            tooltip: 'Questionnaires',
+            onPressed: () async {
+              await Navigator.of(context).push<void>(
+                MaterialPageRoute(
+                  builder: (_) => QuestionnairesPage(
+                    api: widget.api,
+                    session: widget.session,
+                    group: widget.group,
+                  ),
+                ),
+              );
+            },
+            icon: const Icon(Icons.quiz_outlined),
+          ),
           IconButton(
             onPressed: _loading ? null : _reload,
             tooltip: 'Refresh',
@@ -636,11 +655,7 @@ class _RoundPageState extends State<RoundPage> {
                         child: Text('${question.position}'),
                       ),
                       title: Text(question.prompt),
-                      subtitle: Text(
-                        question.kind == 'scale'
-                            ? 'Score ${question.minScore}-${question.maxScore}'
-                            : 'Optional private comment',
-                      ),
+                      subtitle: Text(_questionKindLabel(question)),
                     ),
                   ),
                 const SizedBox(height: 24),
@@ -728,6 +743,8 @@ class _FeedbackFormPageState extends State<FeedbackFormPage> {
   final _formKey = GlobalKey<FormState>();
   final Map<String, int> _scores = {};
   final Map<String, TextEditingController> _textControllers = {};
+  final Map<String, String> _singleChoices = {};
+  final Map<String, Set<String>> _multipleChoices = {};
   bool _submitting = false;
   String? _responseToken;
 
@@ -735,7 +752,9 @@ class _FeedbackFormPageState extends State<FeedbackFormPage> {
   void initState() {
     super.initState();
     for (final question in widget.round.questions) {
-      if (question.kind == 'text') {
+      if (question.kind == 'text' ||
+          question.kind == 'short_text' ||
+          question.kind == 'long_text') {
         _textControllers[question.id] = TextEditingController();
       }
     }
@@ -750,51 +769,196 @@ class _FeedbackFormPageState extends State<FeedbackFormPage> {
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
+    if (!_formKey.currentState!.validate()) return;
     setState(() => _submitting = true);
-
     try {
       final answers = <AnswerSubmission>[];
       for (final question in widget.round.questions) {
-        if (question.kind == 'scale') {
-          answers.add(
-            AnswerSubmission(
-              questionId: question.id,
-              score: _scores[question.id],
-            ),
-          );
-          continue;
-        }
-        final text = _textControllers[question.id]?.text.trim() ?? '';
-        if (text.isNotEmpty) {
-          answers.add(AnswerSubmission(questionId: question.id, text: text));
+        switch (question.kind) {
+          case 'description':
+            continue;
+          case 'scale':
+            final score = _scores[question.id];
+            if (score != null) {
+              answers.add(
+                AnswerSubmission(questionId: question.id, score: score),
+              );
+            }
+            continue;
+          case 'text':
+          case 'short_text':
+          case 'long_text':
+            final text = _textControllers[question.id]?.text.trim() ?? '';
+            if (text.isNotEmpty) {
+              answers.add(
+                AnswerSubmission(questionId: question.id, text: text),
+              );
+            }
+            continue;
+          case 'single_choice':
+            final optionId = _singleChoices[question.id];
+            if (optionId != null) {
+              answers.add(
+                AnswerSubmission(
+                  questionId: question.id,
+                  optionIds: [optionId],
+                ),
+              );
+            }
+            continue;
+          case 'multiple_choice':
+            final selected = _multipleChoices[question.id] ?? <String>{};
+            if (selected.isNotEmpty) {
+              answers.add(
+                AnswerSubmission(
+                  questionId: question.id,
+                  optionIds: selected.toList(),
+                ),
+              );
+            }
+            continue;
         }
       }
-
       _responseToken ??= await widget.api.claimResponseCredential(
         widget.session.sessionToken,
         widget.round.id,
       );
-
       await widget.api.submitFeedback(
         widget.round.id,
         _responseToken!,
         answers,
       );
       _responseToken = null;
-      if (mounted) {
-        Navigator.pop(context, true);
-      }
+      if (mounted) Navigator.pop(context, true);
     } catch (error) {
-      if (mounted) {
-        _showError(context, error);
-      }
+      if (mounted) _showError(context, error);
     } finally {
-      if (mounted) {
-        setState(() => _submitting = false);
-      }
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  Widget _field(QuestionSummary question) {
+    final label = '${question.position}. ${question.prompt}';
+    switch (question.kind) {
+      case 'description':
+        return Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Text(question.prompt),
+          ),
+        );
+      case 'scale':
+        return DropdownButtonFormField<int>(
+          decoration: InputDecoration(
+            labelText: label,
+            border: const OutlineInputBorder(),
+          ),
+          initialValue: _scores[question.id],
+          items: [
+            for (
+              var score = question.minScore ?? 1;
+              score <= (question.maxScore ?? 5);
+              score++
+            )
+              DropdownMenuItem(value: score, child: Text('$score')),
+          ],
+          onChanged: _submitting
+              ? null
+              : (value) {
+                  if (value != null) {
+                    setState(() => _scores[question.id] = value);
+                  }
+                },
+          validator: (value) =>
+              question.required && value == null ? 'Choose a score' : null,
+        );
+      case 'single_choice':
+        return DropdownButtonFormField<String>(
+          decoration: InputDecoration(
+            labelText: label,
+            border: const OutlineInputBorder(),
+          ),
+          initialValue: _singleChoices[question.id],
+          items: question.options
+              .map(
+                (option) => DropdownMenuItem(
+                  value: option.id,
+                  child: Text(option.label),
+                ),
+              )
+              .toList(),
+          onChanged: _submitting
+              ? null
+              : (value) {
+                  if (value != null) {
+                    setState(() => _singleChoices[question.id] = value);
+                  }
+                },
+          validator: (value) =>
+              question.required && value == null ? 'Choose an option' : null,
+        );
+      case 'multiple_choice':
+        return FormField<Set<String>>(
+          initialValue: _multipleChoices[question.id] ?? <String>{},
+          validator: (value) =>
+              question.required && (value == null || value.isEmpty)
+              ? 'Choose at least one option'
+              : null,
+          builder: (field) {
+            final selected = field.value ?? <String>{};
+            return InputDecorator(
+              decoration: InputDecoration(
+                labelText: label,
+                border: const OutlineInputBorder(),
+                errorText: field.errorText,
+              ),
+              child: Column(
+                children: [
+                  for (final option in question.options)
+                    CheckboxListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(option.label),
+                      value: selected.contains(option.id),
+                      onChanged: _submitting
+                          ? null
+                          : (checked) {
+                              final next = <String>{...selected};
+                              if (checked == true) {
+                                next.add(option.id);
+                              } else {
+                                next.remove(option.id);
+                              }
+                              _multipleChoices[question.id] = next;
+                              field.didChange(next);
+                              setState(() {});
+                            },
+                    ),
+                ],
+              ),
+            );
+          },
+        );
+      case 'short_text':
+      case 'long_text':
+      case 'text':
+        final short = question.kind == 'short_text';
+        return TextFormField(
+          controller: _textControllers[question.id],
+          enabled: !_submitting,
+          maxLength: short ? 200 : 1000,
+          maxLines: short ? 2 : 5,
+          decoration: InputDecoration(
+            labelText: label,
+            border: const OutlineInputBorder(),
+          ),
+          validator: (value) =>
+              question.required && (value ?? '').trim().isEmpty
+              ? 'Enter a response'
+              : null,
+        );
+      default:
+        return Text('Unsupported question type: ${question.kind}');
     }
   }
 
@@ -811,53 +975,14 @@ class _FeedbackFormPageState extends State<FeedbackFormPage> {
               child: Padding(
                 padding: EdgeInsets.all(16),
                 child: Text(
-                  'Focus on observable behavior. Do not include names or identifying '
-                  'details in the free-text comment.',
+                  'Focus on observable behavior. Do not include names or identifying details '
+                  'in free-text answers.',
                 ),
               ),
             ),
             const SizedBox(height: 8),
             for (final question in widget.round.questions) ...[
-              if (question.kind == 'scale')
-                DropdownButtonFormField<int>(
-                  decoration: InputDecoration(
-                    labelText: '${question.position}. ${question.prompt}',
-                    border: const OutlineInputBorder(),
-                  ),
-                  initialValue: _scores[question.id],
-                  items: [
-                    for (
-                      var score = question.minScore ?? 1;
-                      score <= (question.maxScore ?? 5);
-                      score++
-                    )
-                      DropdownMenuItem(value: score, child: Text('$score')),
-                  ],
-                  onChanged: _submitting
-                      ? null
-                      : (value) {
-                          if (value != null) {
-                            setState(() => _scores[question.id] = value);
-                          }
-                        },
-                  validator: (value) {
-                    if (question.required && value == null) {
-                      return 'Choose a score';
-                    }
-                    return null;
-                  },
-                )
-              else
-                TextFormField(
-                  controller: _textControllers[question.id],
-                  enabled: !_submitting,
-                  maxLength: 500,
-                  maxLines: 4,
-                  decoration: InputDecoration(
-                    labelText: '${question.position}. ${question.prompt}',
-                    border: const OutlineInputBorder(),
-                  ),
-                ),
+              _field(question),
               const SizedBox(height: 16),
             ],
             FilledButton.icon(
@@ -909,13 +1034,9 @@ class _ResultsPageState extends State<ResultsPage> {
         widget.session.sessionToken,
         widget.roundId,
       );
-      if (mounted) {
-        setState(() => _results = results);
-      }
+      if (mounted) setState(() => _results = results);
     } catch (error) {
-      if (mounted) {
-        setState(() => _error = error);
-      }
+      if (mounted) setState(() => _error = error);
     }
   }
 
@@ -959,11 +1080,31 @@ class _ResultsPageState extends State<ResultsPage> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'Average ${result.average.toStringAsFixed(2)} / 5',
+                            result.average == null
+                                ? 'No answers'
+                                : 'Average ${result.average!.toStringAsFixed(2)}',
                             style: Theme.of(context).textTheme.headlineSmall,
                           ),
                           const SizedBox(height: 8),
                           Text(_distributionText(result.distribution)),
+                        ],
+                      ),
+                    ),
+                  ),
+                for (final result in results.choiceResults)
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            result.prompt,
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          const SizedBox(height: 8),
+                          for (final option in result.options)
+                            Text('${option.label}: ${option.count}'),
                         ],
                       ),
                     ),
@@ -1050,6 +1191,71 @@ class _EmptyState extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+Future<QuestionnaireSummary?> _selectQuestionnaireDialog(
+  BuildContext context,
+  List<QuestionnaireSummary> questionnaires,
+) async {
+  if (questionnaires.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('No published questionnaires are available.'),
+      ),
+    );
+    return null;
+  }
+  return showDialog<QuestionnaireSummary>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Choose questionnaire'),
+      content: SizedBox(
+        width: 520,
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            for (final item in questionnaires)
+              ListTile(
+                leading: Icon(
+                  item.isBuiltIn ? Icons.lock_outline : Icons.quiz_outlined,
+                ),
+                title: Text(item.name),
+                subtitle: Text(
+                  'Version ${item.version} · ${item.questions.length} blocks',
+                ),
+                onTap: () => Navigator.pop(context, item),
+              ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+      ],
+    ),
+  );
+}
+
+String _questionKindLabel(QuestionSummary question) {
+  switch (question.kind) {
+    case 'scale':
+      return 'Rating ${question.minScore}-${question.maxScore}';
+    case 'single_choice':
+      return 'Single choice · ${question.options.length} options';
+    case 'multiple_choice':
+      return 'Multiple choice · ${question.options.length} options';
+    case 'short_text':
+      return question.required ? 'Required short text' : 'Optional short text';
+    case 'long_text':
+    case 'text':
+      return question.required ? 'Required long text' : 'Optional long text';
+    case 'description':
+      return 'Information only';
+    default:
+      return question.kind;
   }
 }
 

@@ -44,6 +44,26 @@ void main() {
     expect(_header(captured, 'Authorization'), 'Bearer session-token');
     expect(_header(captured, 'X-Response-Token'), isNull);
   });
+
+  test('custom questionnaire round uses questionnaireId selector', () async {
+    late http.Request captured;
+    final client = MockClient((request) async {
+      captured = request;
+      return http.Response(
+        '{"id":"r","groupId":"g","subjectUserId":"u","questionnaireId":"q","questionnaireSlug":"custom","status":"draft","minResponses":3,"createdAt":"2026-09-07T00:00:00Z","openedAt":null,"closedAt":null}',
+        201,
+      );
+    });
+    final api = HttpAnonymproveApi(
+      baseUrl: 'http://127.0.0.1:8000',
+      client: client,
+    );
+
+    await api.createFeedbackRound('session-token', 'g', questionnaireId: 'q');
+
+    expect(captured.body, contains('"questionnaireId":"q"'));
+    expect(captured.body, isNot(contains('questionnaireSlug')));
+  });
 }
 
 String? _header(http.Request request, String name) {
