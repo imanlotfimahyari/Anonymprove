@@ -1,17 +1,18 @@
 from fastapi import FastAPI
 
-from app.api.routes import groups, health, users
+from app.api.routes import feedback, groups, health, users
 
 
 def create_app() -> FastAPI:
     application = FastAPI(
         title="Privacy Feedback API",
-        version="0.2.0",
-        description="Backend foundation for voluntary, privacy-preserving feedback.",
+        version="0.3.0",
+        description="Backend for voluntary, privacy-preserving constructive feedback.",
     )
     application.include_router(health.router)
     application.include_router(users.router)
     application.include_router(groups.router)
+    application.include_router(feedback.router)
     return application
 
 
