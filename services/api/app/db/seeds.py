@@ -110,6 +110,10 @@ def seed_core_questionnaire(db: Session) -> None:
             version=1,
         )
     )
+
+    # Ensure the parent questionnaire exists before inserting FK-dependent questions.
+    db.flush()
+
     db.add_all(
         Question(
             id=question_id,
