@@ -5,7 +5,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_user
@@ -13,19 +13,24 @@ from app.db.session import get_db
 from app.models.feedback import (
     AnonymousResponse,
     Answer,
+    AnswerChoiceOption,
     CredentialClaim,
     FeedbackRound,
     Question,
     Questionnaire,
+    QuestionOption,
     ResponseCredential,
 )
 from app.models.identity import GroupMember, User
 from app.schemas.feedback import (
+    ChoiceOptionResult,
+    ChoiceQuestionResult,
     CreateFeedbackRoundRequest,
     FeedbackResults,
     FeedbackRoundDetail,
     FeedbackRoundSummary,
     QuestionnaireSummary,
+    QuestionOptionSummary,
     QuestionSummary,
     ResponseCredentialResponse,
     ScaleQuestionResult,
@@ -34,6 +39,7 @@ from app.schemas.feedback import (
 )
 
 router = APIRouter(prefix="/api/v1", tags=["feedback"])
+CORE_QUESTIONNAIRE_SLUG = "core-feedback-v1"
 
 
 def _hash_token(token: str) -> str:
@@ -50,7 +56,17 @@ def _questions_for_questionnaire(db: Session, questionnaire_id: UUID) -> list[Qu
     )
 
 
-def _question_summary(question: Question) -> QuestionSummary:
+def _options_for_question(db: Session, question_id: UUID) -> list[QuestionOption]:
+    return list(
+        db.scalars(
+            select(QuestionOption)
+            .where(QuestionOption.question_id == question_id)
+            .order_by(QuestionOption.position)
+        ).all()
+    )
+
+
+def _question_summary(db: Session, question: Question) -> QuestionSummary:
     return QuestionSummary(
         id=question.id,
         key=question.key,
@@ -60,14 +76,40 @@ def _question_summary(question: Question) -> QuestionSummary:
         required=question.required,
         min_score=question.min_score,
         max_score=question.max_score,
+        options=[
+            QuestionOptionSummary(id=option.id, label=option.label, position=option.position)
+            for option in _options_for_question(db, question.id)
+        ],
     )
 
 
-def _questionnaire(db: Session, slug: str) -> Questionnaire:
+def _global_questionnaire(db: Session, slug: str) -> Questionnaire:
     questionnaire = db.scalar(
         select(Questionnaire)
-        .where(Questionnaire.slug == slug)
+        .where(
+            Questionnaire.slug == slug,
+            Questionnaire.group_id.is_(None),
+            Questionnaire.status == "published",
+        )
         .order_by(Questionnaire.version.desc())
+    )
+    if questionnaire is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Questionnaire not found")
+    return questionnaire
+
+
+def _resolve_round_questionnaire(
+    db: Session, group_id: UUID, request: CreateFeedbackRoundRequest
+) -> Questionnaire:
+    if request.questionnaire_id is None:
+        return _global_questionnaire(db, request.questionnaire_slug or CORE_QUESTIONNAIRE_SLUG)
+
+    questionnaire = db.scalar(
+        select(Questionnaire).where(
+            Questionnaire.id == request.questionnaire_id,
+            Questionnaire.status == "published",
+            or_(Questionnaire.group_id.is_(None), Questionnaire.group_id == group_id),
+        )
     )
     if questionnaire is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Questionnaire not found")
@@ -89,6 +131,7 @@ def _round_summary(db: Session, feedback_round: FeedbackRound) -> FeedbackRoundS
         id=feedback_round.id,
         group_id=feedback_round.group_id,
         subject_user_id=feedback_round.subject_user_id,
+        questionnaire_id=feedback_round.questionnaire_id,
         questionnaire_slug=_questionnaire_slug(db, feedback_round.questionnaire_id),
         status=feedback_round.status,
         min_responses=feedback_round.min_responses,
@@ -151,14 +194,18 @@ def get_questionnaire(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> QuestionnaireSummary:
-    questionnaire = _questionnaire(db, slug)
+    questionnaire = _global_questionnaire(db, slug)
     questions = _questions_for_questionnaire(db, questionnaire.id)
     return QuestionnaireSummary(
         id=questionnaire.id,
+        group_id=questionnaire.group_id,
+        created_by_user_id=questionnaire.created_by_user_id,
         slug=questionnaire.slug,
         name=questionnaire.name,
+        description=questionnaire.description,
         version=questionnaire.version,
-        questions=[_question_summary(question) for question in questions],
+        status=questionnaire.status,
+        questions=[_question_summary(db, question) for question in questions],
     )
 
 
@@ -176,7 +223,7 @@ def create_feedback_round(
     if _membership(db, group_id, user.id) is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Group not found")
 
-    questionnaire = _questionnaire(db, request.questionnaire_slug)
+    questionnaire = _resolve_round_questionnaire(db, group_id, request)
     feedback_round = FeedbackRound(
         group_id=group_id,
         subject_user_id=user.id,
@@ -220,7 +267,7 @@ def get_feedback_round(
     questions = _questions_for_questionnaire(db, feedback_round.questionnaire_id)
     return FeedbackRoundDetail(
         **_round_summary(db, feedback_round).model_dump(),
-        questions=[_question_summary(question) for question in questions],
+        questions=[_question_summary(db, question) for question in questions],
     )
 
 
@@ -299,9 +346,10 @@ def claim_response_credential(
 
 
 def _validated_answers(
+    db: Session,
     request: SubmitFeedbackRequest,
     questions: list[Question],
-) -> list[tuple[Question, int | None, str | None]]:
+) -> list[tuple[Question, int | None, str | None, list[UUID]]]:
     question_by_id = {question.id: question for question in questions}
     submitted_ids = [answer.question_id for answer in request.answers]
     if len(submitted_ids) != len(set(submitted_ids)):
@@ -320,7 +368,7 @@ def _validated_answers(
     missing_required = [
         question.id
         for question in questions
-        if question.required and question.id not in answer_by_id
+        if question.kind != "description" and question.required and question.id not in answer_by_id
     ]
     if missing_required:
         raise HTTPException(
@@ -328,14 +376,31 @@ def _validated_answers(
             detail="All required questions must be answered",
         )
 
-    validated: list[tuple[Question, int | None, str | None]] = []
+    options = db.scalars(
+        select(QuestionOption).where(QuestionOption.question_id.in_(list(question_by_id)))
+    ).all()
+    option_ids_by_question: dict[UUID, set[UUID]] = {}
+    for option in options:
+        option_ids_by_question.setdefault(option.question_id, set()).add(option.id)
+
+    validated: list[tuple[Question, int | None, str | None, list[UUID]]] = []
     for question in questions:
         submission = answer_by_id.get(question.id)
         if submission is None:
             continue
 
+        if question.kind == "description":
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="Description blocks do not accept answers",
+            )
+
         if question.kind == "scale":
-            if submission.score is None or submission.text is not None:
+            if (
+                submission.score is None
+                or submission.text is not None
+                or submission.option_ids is not None
+            ):
                 raise HTTPException(
                     status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                     detail="Scale questions require only a numeric score",
@@ -350,14 +415,14 @@ def _validated_answers(
                     status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                     detail="Score is outside the allowed range",
                 )
-            validated.append((question, submission.score, None))
+            validated.append((question, submission.score, None, []))
             continue
 
-        if question.kind == "text":
-            if submission.score is not None:
+        if question.kind in {"text", "short_text", "long_text"}:
+            if submission.score is not None or submission.option_ids is not None:
                 raise HTTPException(
                     status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                    detail="Text questions cannot contain a numeric score",
+                    detail="Text questions require only text",
                 )
             normalized = submission.text.strip() if submission.text is not None else ""
             if not normalized:
@@ -367,7 +432,45 @@ def _validated_answers(
                         detail="Required text question cannot be empty",
                     )
                 continue
-            validated.append((question, None, normalized))
+            if question.kind == "short_text" and len(normalized) > 200:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail="Short text answers must be 200 characters or fewer",
+                )
+            validated.append((question, None, normalized, []))
+            continue
+
+        if question.kind in {"single_choice", "multiple_choice"}:
+            if submission.score is not None or submission.text is not None:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail="Choice questions require only optionIds",
+                )
+            selected = submission.option_ids or []
+            if len(selected) != len(set(selected)):
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail="Duplicate choice option",
+                )
+            if not selected:
+                if question.required:
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                        detail="Required choice question must select an option",
+                    )
+                continue
+            if question.kind == "single_choice" and len(selected) != 1:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail="Single-choice questions require exactly one option",
+                )
+            allowed = option_ids_by_question.get(question.id, set())
+            if not set(selected).issubset(allowed):
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail="Choice contains an option outside this question",
+                )
+            validated.append((question, None, None, selected))
             continue
 
         raise HTTPException(
@@ -419,20 +522,29 @@ def submit_feedback(
         )
 
     questions = _questions_for_questionnaire(db, feedback_round.questionnaire_id)
-    validated = _validated_answers(request, questions)
+    validated = _validated_answers(db, request, questions)
 
     anonymous_response = AnonymousResponse(round_id=round_id)
     db.add(anonymous_response)
     db.flush()
-    db.add_all(
-        Answer(
+
+    answer_rows: list[tuple[Answer, list[UUID]]] = []
+    for question, score, text_value, option_ids in validated:
+        answer = Answer(
             response_id=anonymous_response.id,
             question_id=question.id,
             score=score,
             text_value=text_value,
         )
-        for question, score, text_value in validated
+        db.add(answer)
+        answer_rows.append((answer, option_ids))
+    db.flush()
+    db.add_all(
+        AnswerChoiceOption(answer_id=answer.id, option_id=option_id)
+        for answer, option_ids in answer_rows
+        for option_id in option_ids
     )
+
     credential.used_at = datetime.now(UTC)
     db.commit()
     return {"status": "accepted"}
@@ -484,6 +596,7 @@ def get_feedback_results(
     questions = _questions_for_questionnaire(db, feedback_round.questionnaire_id)
     scale_results: list[ScaleQuestionResult] = []
     text_results: list[TextQuestionResult] = []
+    choice_results: list[ChoiceQuestionResult] = []
 
     for question in questions:
         if question.kind == "scale":
@@ -498,7 +611,9 @@ def get_feedback_results(
                 ).all()
             )
             numeric_scores = [score for score in scores if score is not None]
-            average = round(sum(numeric_scores) / len(numeric_scores), 2)
+            average = (
+                round(sum(numeric_scores) / len(numeric_scores), 2) if numeric_scores else None
+            )
             distribution = {
                 str(score): numeric_scores.count(score)
                 for score in range(question.min_score or 1, (question.max_score or 5) + 1)
@@ -514,30 +629,62 @@ def get_feedback_results(
             )
             continue
 
-        comments = list(
-            db.scalars(
-                select(Answer.text_value)
+        if question.kind in {"text", "short_text", "long_text"}:
+            comments = list(
+                db.scalars(
+                    select(Answer.text_value)
+                    .join(AnonymousResponse, AnonymousResponse.id == Answer.response_id)
+                    .where(
+                        AnonymousResponse.round_id == round_id,
+                        Answer.question_id == question.id,
+                        Answer.text_value.is_not(None),
+                    )
+                    .order_by(Answer.text_value)
+                ).all()
+            )
+            text_results.append(
+                TextQuestionResult(
+                    question_id=question.id,
+                    key=question.key,
+                    prompt=question.prompt,
+                    comments=[comment for comment in comments if comment is not None],
+                )
+            )
+            continue
+
+        if question.kind in {"single_choice", "multiple_choice"}:
+            count_rows = db.execute(
+                select(AnswerChoiceOption.option_id, func.count())
+                .join(Answer, Answer.id == AnswerChoiceOption.answer_id)
                 .join(AnonymousResponse, AnonymousResponse.id == Answer.response_id)
                 .where(
                     AnonymousResponse.round_id == round_id,
                     Answer.question_id == question.id,
-                    Answer.text_value.is_not(None),
                 )
-                .order_by(Answer.text_value)
+                .group_by(AnswerChoiceOption.option_id)
             ).all()
-        )
-        text_results.append(
-            TextQuestionResult(
-                question_id=question.id,
-                key=question.key,
-                prompt=question.prompt,
-                comments=[comment for comment in comments if comment is not None],
+            counts = {option_id: count for option_id, count in count_rows}
+            choice_results.append(
+                ChoiceQuestionResult(
+                    question_id=question.id,
+                    key=question.key,
+                    prompt=question.prompt,
+                    kind=question.kind,
+                    options=[
+                        ChoiceOptionResult(
+                            option_id=option.id,
+                            label=option.label,
+                            count=counts.get(option.id, 0),
+                        )
+                        for option in _options_for_question(db, question.id)
+                    ],
+                )
             )
-        )
 
     return FeedbackResults(
         round_id=round_id,
         response_count=response_count or 0,
         scale_results=scale_results,
         text_results=text_results,
+        choice_results=choice_results,
     )

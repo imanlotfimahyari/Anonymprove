@@ -105,13 +105,16 @@ def seed_core_questionnaire(db: Session) -> None:
     db.add(
         Questionnaire(
             id=CORE_QUESTIONNAIRE_ID,
+            group_id=None,
+            created_by_user_id=None,
             slug=CORE_QUESTIONNAIRE_SLUG,
             name="Core constructive feedback",
+            description="Built-in constructive self-improvement feedback questionnaire.",
             version=1,
+            status="published",
         )
     )
 
-    # Ensure the parent questionnaire exists before inserting FK-dependent questions.
     db.flush()
 
     db.add_all(
