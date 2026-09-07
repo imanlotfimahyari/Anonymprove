@@ -10,6 +10,11 @@ class Settings(BaseSettings):
     jwt_ttl_minutes: int = 60
     jwt_algorithm: str = "HS256"
     database_url: str
+    cors_origins: str = "http://127.0.0.1:8080,http://localhost:8080"
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
 
     model_config = SettingsConfigDict(
         env_file=".env",
