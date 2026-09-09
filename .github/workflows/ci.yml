@@ -100,3 +100,7 @@ jobs:
       - name: Run Flutter tests
         working-directory: apps/client
         run: flutter test --coverage
+
+      - name: Build Android debug APK
+        working-directory: apps/client
+        run: flutter build apk --debug

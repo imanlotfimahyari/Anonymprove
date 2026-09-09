@@ -1265,15 +1265,16 @@ Future<String?> _textDialog(
   required String label,
   required String actionLabel,
 }) async {
-  final controller = TextEditingController();
-  final value = await showDialog<String>(
+  var draft = '';
+
+  return showDialog<String>(
     context: context,
     builder: (context) => AlertDialog(
       title: Text(title),
       content: TextField(
-        controller: controller,
         autofocus: true,
         decoration: InputDecoration(labelText: label),
+        onChanged: (value) => draft = value,
         onSubmitted: (value) {
           final trimmed = value.trim();
           if (trimmed.isNotEmpty) {
@@ -1288,7 +1289,7 @@ Future<String?> _textDialog(
         ),
         FilledButton(
           onPressed: () {
-            final trimmed = controller.text.trim();
+            final trimmed = draft.trim();
             if (trimmed.isNotEmpty) {
               Navigator.pop(context, trimmed);
             }
@@ -1298,8 +1299,6 @@ Future<String?> _textDialog(
       ],
     ),
   );
-  controller.dispose();
-  return value;
 }
 
 void _showError(BuildContext context, Object error) {
