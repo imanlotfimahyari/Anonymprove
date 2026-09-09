@@ -1,4 +1,4 @@
-.PHONY: setup-api lint-api format-api test-api audit-api docker-build client-get client-check check
+.PHONY: setup-api lint-api format-api migrate-api test-api audit-api docker-build client-get client-check client-build-android check
 
 setup-api:
 	python -m pip install -e "services/api[dev]"
@@ -10,6 +10,9 @@ lint-api:
 format-api:
 	ruff check --fix services/api
 	ruff format services/api
+
+migrate-api:
+	alembic -c services/api/alembic.ini upgrade head
 
 test-api:
 	JWT_SECRET=local-test-secret-not-for-production-0123456789 pytest services/api
@@ -27,4 +30,7 @@ client-check: client-get
 	cd apps/client && flutter analyze
 	cd apps/client && flutter test --coverage
 
-check: lint-api test-api audit-api client-check docker-build
+client-build-android: client-get
+	cd apps/client && flutter build apk --debug
+
+check: lint-api test-api audit-api client-check client-build-android docker-build

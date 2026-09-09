@@ -1,123 +1,348 @@
-# Privacy-preserving feedback platform
+# Anonymprove
 
-A cross-platform application for voluntary, constructive, anonymous feedback and group-health assessment.
+Anonymprove is a cross-platform application for voluntary, constructive, privacy-preserving feedback and group-health assessment.
+
+The product is intended for self-improvement and group awareness, not for ranking people. Feedback should focus on observable behavior and actionable improvement rather than personal worth, popularity, or social scoring.
 
 ## Status
 
-This repository is at **M0 — foundation**. The current implementation intentionally keeps the product surface small while establishing testable application and CI boundaries.
+Current milestone: **M5 — Android support completed**
 
-The API currently provides:
+Next milestone: **M6 — group-health mode**
 
-- `GET /health/live` — liveness endpoint.
-- `POST /api/v1/users/session` — temporary anonymous-session bootstrap for development.
-- `GET /api/v1/users/me` — validates the bearer token and returns the current temporary profile.
+The project is currently **pre-beta** and intended for development/testing rather than production use.
 
-The temporary session store is in memory. It is **not production persistence** and is expected to be replaced by PostgreSQL-backed identity/group models in M1.
+Implemented through M5:
+
+- PostgreSQL-backed users, groups, and memberships
+- private session-based identity
+- group creation and high-entropy join codes
+- feedback rounds with minimum-response privacy thresholds
+- eligibility checks separated from anonymous feedback submission
+- single-use response credentials
+- built-in structured feedback questionnaire
+- group-scoped custom questionnaires
+- questionnaire draft, publish, and versioning lifecycle
+- scale, single-choice, multiple-choice, short-text, long-text, and description question types
+- aggregated feedback results
+- Flutter Web client
+- Flutter Android client
+- Android/Web cross-platform feedback flow
+- API, Flutter, Docker, and Android build checks in CI
+
+## Core privacy model
+
+The central design principle is:
+
+```text
+identity establishes eligibility
+            |
+            v
+   response credential
+            |
+            v
+anonymous submission carries no user identity
+```
+
+Identity/group membership and anonymous feedback storage are deliberately separated.
+
+The current schema records which user claimed eligibility for a round, but anonymous response records do not contain a responder/user identifier. Response credentials are stored separately and consumed when feedback is submitted.
+
+This provides **logical/schema-level unlinkability**, not cryptographic anonymity. A sufficiently privileged database or infrastructure operator may still be able to infer relationships using operational metadata such as timing, logs, request metadata, or other side channels.
+
+See `docs/security/threat-model.md` and `SECURITY.md`.
 
 ## Architecture
 
 ```text
-Flutter client (Android / Web first; iOS / Windows compatible)
-                         |
-                      HTTPS
-                         |
-                 FastAPI modular monolith
-                         |
-                  PostgreSQL (M1)
+              Flutter client
+          Web              Android
+            \                /
+             \              /
+                  HTTP/S
+                    |
+          FastAPI modular monolith
+                    |
+                PostgreSQL
 ```
 
-The first production architecture will remain a modular monolith. Kubernetes, blockchain, AI/LLMs, Redis, Kafka, and microservices are deliberately out of scope until there is a concrete requirement for them.
+The application intentionally remains a modular monolith.
+
+Kubernetes, blockchain, AI/LLMs, Redis, Kafka, and microservices are out of scope unless a concrete requirement justifies them.
 
 ## Repository layout
 
 ```text
 apps/
-  client/                 Flutter application source
+  client/
+    lib/                    Flutter application
+    web/                    Web runner
+    android/                Android runner
+    test/                   Flutter tests
+
 services/
-  api/                    FastAPI backend
+  api/
+    app/                    FastAPI application
+    alembic/                Database migrations
+    tests/                  API tests
+
 docs/
-  architecture/           Architecture decisions
-  security/               Privacy and threat-model notes
+  architecture/             Architecture decisions
+  security/                 Privacy and threat-model notes
+
 .github/
-  workflows/              CI workflows
+  workflows/                CI workflows
+
+compose.yaml                Local PostgreSQL + API stack
 ```
 
 ## Backend development
 
-Requirements: Python 3.12+.
+Requirements:
+
+- Python 3.12+
+- PostgreSQL, or Docker for the local stack
+
+Create and activate a virtual environment:
 
 ```bash
 python -m venv .venv
-source .venv/bin/activate        # Windows PowerShell: .venv\\Scripts\\Activate.ps1
+```
+
+Windows PowerShell:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+```
+
+Install the API and development dependencies:
+
+```bash
 python -m pip install -e "services/api[dev]"
 ```
 
-Create a local environment file from the template and replace all placeholders:
+Create a local environment file from the template and replace the placeholders.
+
+Linux/macOS:
 
 ```bash
 cp .env.example .env
 ```
 
-Run the API:
+Windows PowerShell:
 
-```bash
-cd services/api
-uvicorn app.main:app --reload
+```powershell
+Copy-Item .env.example .env
 ```
 
-OpenAPI is available locally at `/docs`.
+Do not commit `.env`.
 
-## Docker
+### Run with Docker Compose
 
-After creating `.env`:
+From the repository root:
 
 ```bash
 docker compose up --build
 ```
 
+The API applies Alembic migrations before starting.
+
+Liveness endpoint:
+
+```text
+http://127.0.0.1:8000/health/live
+```
+
+OpenAPI / Swagger UI:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
 ## Flutter development
 
-The committed Flutter code contains the application package and tests. Generate the platform runners once on a development machine with Flutter installed:
+The supported client targets through M5 are **Web and Android**.
+
+Install dependencies:
 
 ```bash
 cd apps/client
-flutter create --platforms=android,web,windows,ios --project-name privacy_feedback_app .
 flutter pub get
-flutter analyze
-flutter test
 ```
 
-The initial delivery priority is Android and Web. iOS can use the same Flutter application code but requires macOS/Xcode for normal iOS builds.
+Run static analysis and tests:
+
+```bash
+flutter analyze
+flutter test --coverage
+```
+
+### Run Web
+
+With the API running locally:
+
+```bash
+flutter run \
+  -d web-server \
+  --web-hostname 127.0.0.1 \
+  --web-port 8080 \
+  --dart-define=API_BASE_URL=http://127.0.0.1:8000
+```
+
+Open:
+
+```text
+http://127.0.0.1:8080
+```
+
+### Run Android emulator
+
+Android Emulator uses `10.0.2.2` to reach services running on the host machine:
+
+```bash
+flutter run \
+  -d emulator-5554 \
+  --dart-define=API_BASE_URL=http://10.0.2.2:8000
+```
+
+The exact device ID may differ:
+
+```bash
+flutter devices
+```
+
+Build a debug APK:
+
+```bash
+flutter build apk --debug
+```
+
+The Android application ID is:
+
+```text
+io.github.imanlotfimahyari.anonymprove
+```
+
+The current release-signing configuration is development-only. Do not treat current Android builds as production/store releases.
+
+## Functional feedback flow
+
+```text
+create private session
+        |
+create or join group
+        |
+choose built-in or custom questionnaire
+        |
+create feedback round
+        |
+minimum eligible-member check
+        |
+open round
+        |
+respondents prove eligibility and claim credentials
+        |
+feedback submitted with response credential only
+        |
+close round
+        |
+minimum response threshold enforced
+        |
+aggregated results shown to the subject
+```
+
+The current privacy floor is at least **3 responses**. For a subject requesting feedback, those responses must come from other eligible group members.
+
+## Questionnaires
+
+Anonymprove includes a built-in questionnaire and supports group-specific custom questionnaires.
+
+Supported question types:
+
+- scale
+- single choice
+- multiple choice
+- short text
+- long text
+- description/information
+
+Custom questionnaires use a versioned lifecycle:
+
+```text
+draft
+  |
+publish
+  |
+published version is immutable
+  |
+create a new version for later changes
+```
+
+Existing feedback rounds retain the questionnaire version with which they were created.
 
 ## Quality gates
 
 Pull requests and pushes to `main` run:
 
-- Ruff linting and formatting checks.
-- Pytest with coverage.
-- Python dependency vulnerability audit.
-- Backend Docker image build.
-- Flutter dependency resolution, static analysis, and widget tests.
+- Ruff linting
+- Ruff formatting checks
+- Alembic migrations against PostgreSQL
+- Pytest with coverage
+- Python dependency vulnerability audit
+- backend Docker image build
+- Flutter dependency resolution
+- Flutter static analysis
+- Flutter widget tests
+- Android debug APK build
 
-Run the same checks locally before opening a PR:
+For the main local checks:
 
 ```bash
 make check
 ```
 
+`make check` covers API lint/test/audit, Flutter analysis/tests, Android debug build, and backend Docker image build. Database migration validation still requires a configured/running PostgreSQL instance and can be run separately with:
+
+```bash
+make migrate-api
+```
+
 ## Privacy principles
 
 1. Feedback recipients must not receive responder identities.
-2. Eligibility and anonymous-response data must become separate trust domains before real feedback is stored.
-3. Bearer tokens, credentials, and feedback bodies must not be written to application logs.
-4. Results should use minimum-response thresholds and delayed aggregation to reduce social deanonymization.
-5. M0 does **not** claim cryptographic anonymity. See `docs/security/threat-model.md`.
+2. Identity is used to establish eligibility, not stored on anonymous response records.
+3. Anonymous submission uses a response credential rather than the user's session bearer token.
+4. Bearer tokens, response credentials, join codes, and raw feedback bodies must not be written to application logs.
+5. Results require minimum-response thresholds to reduce social deanonymization.
+6. Free text must be treated as potentially identifying.
+7. Privacy-boundary changes require explicit threat-model review.
+8. The project does not claim cryptographic or mathematically provable anonymity.
 
 ## Roadmap
 
-- **M0:** repository, API/client scaffolding, tests, CI, threat model.
-- **M1:** persistent users, groups, invitations, PostgreSQL migrations.
-- **M2:** feedback rounds and structured questionnaires.
-- **M3:** separated eligibility/anonymous-response credentials and aggregation thresholds.
-- **M4:** group-health assessments and longitudinal results.
-- **M5:** moderation, abuse controls, privacy hardening, deployment.
+- **M0 — Foundation** ✅  
+  Repository structure, FastAPI/Flutter scaffolding, CI, tests, and initial threat model.
+
+- **M1 — Persistent identity and groups** ✅  
+  PostgreSQL, users, groups, memberships, migrations, and join codes.
+
+- **M2 — Anonymous feedback engine** ✅  
+  Feedback rounds, eligibility checks, response credentials, anonymous submission, and response thresholds.
+
+- **M3 — Functional Flutter Web client** ✅  
+  End-to-end Web workflow and client/API integration.
+
+- **M4 — Custom questionnaires** ✅  
+  Questionnaire builder, multiple question types, publishing, versioning, dynamic forms, and aggregate results.
+
+- **M5 — Android support** ✅  
+  Android runner, application identity, emulator networking, APK build, Android lifecycle regression coverage, and Android/Web validation.
+
+- **M6 — Group-health mode**  
+  Anonymous assessment of group dynamics and recurring group-health signals.
+
+- **M7 — Privacy and abuse hardening**  
+  Abuse controls, privacy review, rate limiting, moderation-related safeguards, and operational hardening.
+
+- **M8 — Deployment and beta**  
+  Hosted deployment, production configuration, observability, release process, and early-user validation.
