@@ -19,7 +19,10 @@ The current implementation separates identity/eligibility from anonymous respons
 - a separate single-use response credential authorizes submission;
 - anonymous response records do not contain a responder/user identifier;
 - answers reference the anonymous response and questionnaire data, not the responder identity;
-- results are gated by round state and minimum-response thresholds.
+- results are gated by round state and minimum-response thresholds;
+- individual-feedback results are restricted to the round subject;
+- group-health rounds have no individual subject, allow all current group members including the creator to participate, and expose only thresholded aggregate results to current group members;
+- group-health history operates only on previously released aggregate results and does not contain respondent-level history.
 
 This is **logical/schema-level unlinkability**, not cryptographic anonymity.
 
@@ -43,6 +46,8 @@ Changes that affect any of the following require explicit review against `docs/s
 - credential claiming or consumption;
 - anonymous response or answer storage;
 - result aggregation or minimum-response thresholds;
+- round type, creator, subject, or group-health result authorization;
+- longitudinal aggregation or group-health history;
 - logging, tracing, analytics, or request metadata;
 - free-text collection;
 - data export, retention, or deletion.
@@ -59,7 +64,7 @@ Minimum-response thresholds reduce small-group deanonymization risk but do not p
 
 ## Android release security
 
-Android support through M5 is for development and testing. The current release build configuration is not a production signing/release process.
+Android support through M6 is for development and testing. The current release build configuration is not a production signing/release process.
 
 Before external/store distribution:
 

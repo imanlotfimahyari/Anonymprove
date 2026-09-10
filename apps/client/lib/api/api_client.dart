@@ -42,6 +42,7 @@ abstract class AnonymproveApi {
     String sessionToken,
     String groupId, {
     String? questionnaireId,
+    String roundType = 'individual_feedback',
   });
   Future<FeedbackRoundDetail> getFeedbackRound(
     String sessionToken,
@@ -221,19 +222,21 @@ class HttpAnonymproveApi implements AnonymproveApi {
     String sessionToken,
     String groupId, {
     String? questionnaireId,
+    String roundType = 'individual_feedback',
   }) async {
-    final body = <String, dynamic>{'minResponses': 3};
-    if (questionnaireId == null) {
-      body['questionnaireSlug'] = 'core-feedback-v1';
-    } else {
+    final body = <String, dynamic>{'roundType': roundType, 'minResponses': 3};
+
+    if (questionnaireId != null) {
       body['questionnaireId'] = questionnaireId;
     }
+
     final json = await _request(
       'POST',
       '/api/v1/groups/$groupId/feedback-rounds',
       sessionToken: sessionToken,
       body: body,
     );
+
     return FeedbackRoundSummary.fromJson(json as Map<String, dynamic>);
   }
 

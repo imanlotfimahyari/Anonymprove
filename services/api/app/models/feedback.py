@@ -87,30 +87,81 @@ class QuestionOption(Base):
 class FeedbackRound(Base):
     __tablename__ = "feedback_rounds"
     __table_args__ = (
-        CheckConstraint("status IN ('draft', 'open', 'closed')", name="ck_feedback_rounds_status"),
+        CheckConstraint(
+            "status IN ('draft', 'open', 'closed')",
+            name="ck_feedback_rounds_status",
+        ),
         CheckConstraint(
             "min_responses >= 3 AND min_responses <= 10",
             name="ck_feedback_rounds_min_responses",
         ),
+        CheckConstraint(
+            "round_type IN ('individual_feedback', 'group_health')",
+            name="ck_feedback_rounds_round_type",
+        ),
+        CheckConstraint(
+            "("
+            "round_type = 'individual_feedback' AND subject_user_id IS NOT NULL"
+            ") OR ("
+            "round_type = 'group_health' AND subject_user_id IS NULL"
+            ")",
+            name="ck_feedback_rounds_subject_semantics",
+        ),
     )
 
-    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
-    group_id: Mapped[UUID] = mapped_column(
-        ForeignKey("groups.id", ondelete="CASCADE"), nullable=False, index=True
+    id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
     )
-    subject_user_id: Mapped[UUID] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    group_id: Mapped[UUID] = mapped_column(
+        ForeignKey("groups.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    subject_user_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    created_by_user_id: Mapped[UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     questionnaire_id: Mapped[UUID] = mapped_column(
-        ForeignKey("questionnaires.id", ondelete="RESTRICT"), nullable=False, index=True
+        ForeignKey("questionnaires.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
     )
-    status: Mapped[str] = mapped_column(String(16), nullable=False, default="draft")
-    min_responses: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=3)
+    round_type: Mapped[str] = mapped_column(
+        String(24),
+        nullable=False,
+        default="individual_feedback",
+    )
+    status: Mapped[str] = mapped_column(
+        String(16),
+        nullable=False,
+        default="draft",
+    )
+    min_responses: Mapped[int] = mapped_column(
+        SmallInteger,
+        nullable=False,
+        default=3,
+    )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=func.now()
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
     )
-    opened_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    opened_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    closed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
 
 
 class CredentialClaim(Base):
