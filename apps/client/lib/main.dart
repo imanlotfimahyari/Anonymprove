@@ -450,6 +450,25 @@ class _GroupPageState extends State<GroupPage> {
         title: Text(widget.group.name),
         actions: [
           IconButton(
+            tooltip: 'Group health history',
+            onPressed: () async {
+              await Navigator.of(context).push<void>(
+                MaterialPageRoute(
+                  builder: (_) => GroupHealthHistoryPage(
+                    api: widget.api,
+                    session: widget.session,
+                    group: widget.group,
+                  ),
+                ),
+              );
+
+              if (mounted) {
+                await _reload();
+              }
+            },
+            icon: const Icon(Icons.timeline_outlined),
+          ),
+          IconButton(
             tooltip: 'Questionnaires',
             onPressed: () async {
               await Navigator.of(context).push<void>(
@@ -1150,6 +1169,245 @@ class ResultsPage extends StatefulWidget {
 
   @override
   State<ResultsPage> createState() => _ResultsPageState();
+}
+
+class GroupHealthHistoryPage extends StatefulWidget {
+  const GroupHealthHistoryPage({
+    required this.api,
+    required this.session,
+    required this.group,
+    super.key,
+  });
+
+  final AnonymproveApi api;
+  final SessionInfo session;
+  final GroupSummary group;
+
+  @override
+  State<GroupHealthHistoryPage> createState() => _GroupHealthHistoryPageState();
+}
+
+class _GroupHealthHistoryPageState extends State<GroupHealthHistoryPage> {
+  List<_GroupHealthSnapshot>? _snapshots;
+  Object? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final rounds = await widget.api.listFeedbackRounds(
+        widget.session.sessionToken,
+        widget.group.id,
+      );
+
+      final closedRounds =
+          rounds
+              .where((round) => round.isGroupHealth && round.status == 'closed')
+              .toList()
+            ..sort((a, b) => _roundDate(a).compareTo(_roundDate(b)));
+
+      final snapshots = <_GroupHealthSnapshot>[];
+
+      for (final round in closedRounds) {
+        try {
+          final results = await widget.api.getFeedbackResults(
+            widget.session.sessionToken,
+            round.id,
+          );
+
+          snapshots.add(_GroupHealthSnapshot(round: round, results: results));
+        } on ApiException catch (error) {
+          if (error.statusCode != 409) {
+            rethrow;
+          }
+
+          // A closed assessment that did not reach its privacy threshold
+          // must not contribute data to longitudinal history.
+        }
+      }
+
+      if (mounted) {
+        setState(() => _snapshots = snapshots);
+      }
+    } catch (error) {
+      if (mounted) {
+        setState(() => _error = error);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final error = _error;
+    final snapshots = _snapshots;
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Group health history')),
+      body: error != null
+          ? _EmptyState(
+              icon: Icons.error_outline,
+              title: 'History is unavailable',
+              message: _messageFor(error),
+            )
+          : snapshots == null
+          ? const Center(child: CircularProgressIndicator())
+          : snapshots.isEmpty
+          ? const _EmptyState(
+              icon: Icons.timeline_outlined,
+              title: 'No history yet',
+              message:
+                  'Complete a group health assessment to start building '
+                  'a history.',
+            )
+          : ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Text(
+                      'Each entry represents aggregated responses from one '
+                      'closed assessment that reached its privacy threshold. '
+                      'Changes may reflect both perceptions and changes in '
+                      'group membership. No overall health score is calculated.',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                for (var index = snapshots.length - 1; index >= 0; index--)
+                  _GroupHealthSnapshotCard(
+                    snapshot: snapshots[index],
+                    previous: index > 0 ? snapshots[index - 1] : null,
+                  ),
+              ],
+            ),
+    );
+  }
+}
+
+class _GroupHealthSnapshot {
+  const _GroupHealthSnapshot({required this.round, required this.results});
+
+  final FeedbackRoundSummary round;
+  final FeedbackResults results;
+}
+
+class _GroupHealthSnapshotCard extends StatelessWidget {
+  const _GroupHealthSnapshotCard({
+    required this.snapshot,
+    required this.previous,
+  });
+
+  final _GroupHealthSnapshot snapshot;
+  final _GroupHealthSnapshot? previous;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              _formatHistoryDate(_roundDate(snapshot.round)),
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 4),
+            Text('${snapshot.results.responseCount} aggregated responses'),
+            const SizedBox(height: 16),
+            for (final result in snapshot.results.scaleResults) ...[
+              _GroupHealthDimensionRow(
+                result: result,
+                previousAverage: _previousAverage(previous, result.key),
+              ),
+              const SizedBox(height: 12),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _GroupHealthDimensionRow extends StatelessWidget {
+  const _GroupHealthDimensionRow({
+    required this.result,
+    required this.previousAverage,
+  });
+
+  final ScaleQuestionResult result;
+  final double? previousAverage;
+
+  @override
+  Widget build(BuildContext context) {
+    final average = result.average;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(result.prompt, style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 4),
+        if (average == null)
+          const Text('No answers')
+        else
+          Row(
+            children: [
+              Text(
+                average.toStringAsFixed(2),
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
+              if (previousAverage != null) ...[
+                const SizedBox(width: 12),
+                Text(_formatHistoryDelta(average - previousAverage!)),
+              ],
+            ],
+          ),
+      ],
+    );
+  }
+}
+
+double? _previousAverage(_GroupHealthSnapshot? snapshot, String key) {
+  if (snapshot == null) {
+    return null;
+  }
+
+  for (final result in snapshot.results.scaleResults) {
+    if (result.key == key) {
+      return result.average;
+    }
+  }
+
+  return null;
+}
+
+DateTime _roundDate(FeedbackRoundSummary round) {
+  return round.closedAt ?? round.createdAt;
+}
+
+String _formatHistoryDate(DateTime date) {
+  final local = date.toLocal();
+
+  final month = local.month.toString().padLeft(2, '0');
+  final day = local.day.toString().padLeft(2, '0');
+
+  return '${local.year}-$month-$day';
+}
+
+String _formatHistoryDelta(double delta) {
+  if (delta.abs() < 0.005) {
+    return 'No change';
+  }
+
+  final prefix = delta > 0 ? '+' : '';
+
+  return '$prefix${delta.toStringAsFixed(2)} vs previous';
 }
 
 class _ResultsPageState extends State<ResultsPage> {

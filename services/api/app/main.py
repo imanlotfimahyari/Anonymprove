@@ -9,7 +9,7 @@ def create_app() -> FastAPI:
     settings = get_settings()
     application = FastAPI(
         title="Privacy Feedback API",
-        version="0.5.0",
+        version="0.6.0",
         description="Backend for voluntary, privacy-preserving constructive feedback.",
     )
     application.add_middleware(

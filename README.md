@@ -6,13 +6,13 @@ The product is intended for self-improvement and group awareness, not for rankin
 
 ## Status
 
-Current milestone: **M5 — Android support completed**
+Current milestone: **M6 — group-health mode completed**
 
-Next milestone: **M6 — group-health mode**
+Next milestone: **M7 — privacy and abuse hardening**
 
 The project is currently **pre-beta** and intended for development/testing rather than production use.
 
-Implemented through M5:
+Implemented through M6:
 
 - PostgreSQL-backed users, groups, and memberships
 - private session-based identity
@@ -28,6 +28,11 @@ Implemented through M5:
 - Flutter Web client
 - Flutter Android client
 - Android/Web cross-platform feedback flow
+- anonymous group-health assessments
+- group-health-specific built-in questionnaire
+- creator-inclusive group-health participation
+- thresholded group-wide aggregate results
+- longitudinal group-health history with per-dimension changes
 - API, Flutter, Docker, and Android build checks in CI
 
 ## Core privacy model
@@ -161,7 +166,7 @@ http://127.0.0.1:8000/docs
 
 ## Flutter development
 
-The supported client targets through M5 are **Web and Android**.
+The supported client targets through M6 are **Web and Android**.
 
 Install dependencies:
 
@@ -225,7 +230,9 @@ io.github.imanlotfimahyari.anonymprove
 
 The current release-signing configuration is development-only. Do not treat current Android builds as production/store releases.
 
-## Functional feedback flow
+## Functional feedback flows
+
+### Individual feedback
 
 ```text
 create private session
@@ -234,28 +241,53 @@ create or join group
         |
 choose built-in or custom questionnaire
         |
-create feedback round
+create individual-feedback round
         |
-minimum eligible-member check
+subject opens round
         |
-open round
-        |
-respondents prove eligibility and claim credentials
+other eligible members claim response credentials
         |
 feedback submitted with response credential only
         |
-close round
+subject closes round
         |
 minimum response threshold enforced
         |
 aggregated results shown to the subject
 ```
 
-The current privacy floor is at least **3 responses**. For a subject requesting feedback, those responses must come from other eligible group members.
+### Group health
+
+```text
+create or join group
+        |
+start group-health assessment
+        |
+creator opens assessment
+        |
+all eligible members, including creator,
+claim one response credential
+        |
+answers submitted without session identity
+        |
+creator closes assessment
+        |
+minimum response threshold enforced
+        |
+aggregated results shown to current group members
+        |
+completed assessments contribute aggregate-only history
+```
+
+The current privacy floor is at least **3 responses**.
+
+For individual feedback, those responses must come from eligible members other than the subject.
+
+For group health, all group members are eligible, including the assessment creator. Group-health assessments therefore require at least three eligible group members in total.
 
 ## Questionnaires
 
-Anonymprove includes a built-in questionnaire and supports group-specific custom questionnaires.
+Anonymprove includes built-in questionnaires for individual constructive feedback and group-health assessment, and supports group-specific custom questionnaires.
 
 Supported question types:
 
@@ -320,29 +352,29 @@ make migrate-api
 
 ## Roadmap
 
-- **M0 — Foundation** ✅  
+- **M0 — Foundation** ✅
   Repository structure, FastAPI/Flutter scaffolding, CI, tests, and initial threat model.
 
-- **M1 — Persistent identity and groups** ✅  
+- **M1 — Persistent identity and groups** ✅
   PostgreSQL, users, groups, memberships, migrations, and join codes.
 
-- **M2 — Anonymous feedback engine** ✅  
+- **M2 — Anonymous feedback engine** ✅
   Feedback rounds, eligibility checks, response credentials, anonymous submission, and response thresholds.
 
-- **M3 — Functional Flutter Web client** ✅  
+- **M3 — Functional Flutter Web client** ✅
   End-to-end Web workflow and client/API integration.
 
-- **M4 — Custom questionnaires** ✅  
+- **M4 — Custom questionnaires** ✅
   Questionnaire builder, multiple question types, publishing, versioning, dynamic forms, and aggregate results.
 
-- **M5 — Android support** ✅  
+- **M5 — Android support** ✅
   Android runner, application identity, emulator networking, APK build, Android lifecycle regression coverage, and Android/Web validation.
 
-- **M6 — Group-health mode**  
-  Anonymous assessment of group dynamics and recurring group-health signals.
+- **M6 — Group-health mode** ✅
+  Anonymous group-level assessment, creator-inclusive participation, thresholded group results, and aggregate longitudinal history.
 
-- **M7 — Privacy and abuse hardening**  
+- **M7 — Privacy and abuse hardening**
   Abuse controls, privacy review, rate limiting, moderation-related safeguards, and operational hardening.
 
-- **M8 — Deployment and beta**  
+- **M8 — Deployment and beta**
   Hosted deployment, production configuration, observability, release process, and early-user validation.
