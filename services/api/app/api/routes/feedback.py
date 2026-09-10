@@ -40,6 +40,7 @@ from app.schemas.feedback import (
 
 router = APIRouter(prefix="/api/v1", tags=["feedback"])
 CORE_QUESTIONNAIRE_SLUG = "core-feedback-v1"
+GROUP_HEALTH_QUESTIONNAIRE_SLUG = "core-group-health-v1"
 
 
 def _hash_token(token: str) -> str:
@@ -99,20 +100,39 @@ def _global_questionnaire(db: Session, slug: str) -> Questionnaire:
 
 
 def _resolve_round_questionnaire(
-    db: Session, group_id: UUID, request: CreateFeedbackRoundRequest
+    db: Session,
+    group_id: UUID,
+    request: CreateFeedbackRoundRequest,
 ) -> Questionnaire:
     if request.questionnaire_id is None:
-        return _global_questionnaire(db, request.questionnaire_slug or CORE_QUESTIONNAIRE_SLUG)
+        default_slug = (
+            GROUP_HEALTH_QUESTIONNAIRE_SLUG
+            if request.round_type == "group_health"
+            else CORE_QUESTIONNAIRE_SLUG
+        )
+
+        return _global_questionnaire(
+            db,
+            request.questionnaire_slug or default_slug,
+        )
 
     questionnaire = db.scalar(
         select(Questionnaire).where(
             Questionnaire.id == request.questionnaire_id,
             Questionnaire.status == "published",
-            or_(Questionnaire.group_id.is_(None), Questionnaire.group_id == group_id),
+            or_(
+                Questionnaire.group_id.is_(None),
+                Questionnaire.group_id == group_id,
+            ),
         )
     )
+
     if questionnaire is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Questionnaire not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Questionnaire not found",
+        )
+
     return questionnaire
 
 
@@ -126,13 +146,21 @@ def _questionnaire_slug(db: Session, questionnaire_id: UUID) -> str:
     return slug
 
 
-def _round_summary(db: Session, feedback_round: FeedbackRound) -> FeedbackRoundSummary:
+def _round_summary(
+    db: Session,
+    feedback_round: FeedbackRound,
+) -> FeedbackRoundSummary:
     return FeedbackRoundSummary(
         id=feedback_round.id,
         group_id=feedback_round.group_id,
         subject_user_id=feedback_round.subject_user_id,
+        created_by_user_id=feedback_round.created_by_user_id,
         questionnaire_id=feedback_round.questionnaire_id,
-        questionnaire_slug=_questionnaire_slug(db, feedback_round.questionnaire_id),
+        questionnaire_slug=_questionnaire_slug(
+            db,
+            feedback_round.questionnaire_id,
+        ),
+        round_type=feedback_round.round_type,
         status=feedback_round.status,
         min_responses=feedback_round.min_responses,
         created_at=feedback_round.created_at,
@@ -159,18 +187,69 @@ def _round_for_member(db: Session, round_id: UUID, user_id: UUID) -> FeedbackRou
     return feedback_round
 
 
-def _subject_round(db: Session, round_id: UUID, user_id: UUID) -> FeedbackRound:
+def _round_for_creator(
+    db: Session,
+    round_id: UUID,
+    user_id: UUID,
+) -> FeedbackRound:
     feedback_round = db.scalar(
         select(FeedbackRound).where(
             FeedbackRound.id == round_id,
-            FeedbackRound.subject_user_id == user_id,
+            FeedbackRound.created_by_user_id == user_id,
         )
     )
+
     if feedback_round is None:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Feedback round not found"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Feedback round not found",
         )
+
     return feedback_round
+
+
+def _round_for_results(
+    db: Session,
+    round_id: UUID,
+    user_id: UUID,
+) -> FeedbackRound:
+    feedback_round = db.get(FeedbackRound, round_id)
+
+    if feedback_round is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Feedback round not found",
+        )
+
+    if feedback_round.round_type == "individual_feedback":
+        if feedback_round.subject_user_id != user_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Feedback round not found",
+            )
+
+        return feedback_round
+
+    if feedback_round.round_type == "group_health":
+        if (
+            _membership(
+                db,
+                feedback_round.group_id,
+                user_id,
+            )
+            is None
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Feedback round not found",
+            )
+
+        return feedback_round
+
+    raise HTTPException(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        detail="Unsupported feedback round type",
+    )
 
 
 def _new_response_credential(db: Session, round_id: UUID) -> tuple[str, str]:
@@ -226,8 +305,10 @@ def create_feedback_round(
     questionnaire = _resolve_round_questionnaire(db, group_id, request)
     feedback_round = FeedbackRound(
         group_id=group_id,
-        subject_user_id=user.id,
+        subject_user_id=(user.id if request.round_type == "individual_feedback" else None),
+        created_by_user_id=user.id,
         questionnaire_id=questionnaire.id,
+        round_type=request.round_type,
         status="draft",
         min_responses=request.min_responses,
     )
@@ -277,20 +358,22 @@ def open_feedback_round(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> FeedbackRoundSummary:
-    feedback_round = _subject_round(db, round_id, user.id)
+    feedback_round = _round_for_creator(db, round_id, user.id)
     if feedback_round.status != "draft":
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Only draft feedback rounds can be opened",
         )
 
+    eligibility_conditions = [
+        GroupMember.group_id == feedback_round.group_id,
+    ]
+
+    if feedback_round.round_type == "individual_feedback":
+        eligibility_conditions.append(GroupMember.user_id != feedback_round.subject_user_id)
+
     eligible_count = db.scalar(
-        select(func.count())
-        .select_from(GroupMember)
-        .where(
-            GroupMember.group_id == feedback_round.group_id,
-            GroupMember.user_id != feedback_round.subject_user_id,
-        )
+        select(func.count()).select_from(GroupMember).where(*eligibility_conditions)
     )
     if (eligible_count or 0) < feedback_round.min_responses:
         raise HTTPException(
@@ -320,7 +403,10 @@ def claim_response_credential(
             status_code=status.HTTP_409_CONFLICT,
             detail="Feedback round is not open",
         )
-    if feedback_round.subject_user_id == user.id:
+    if (
+        feedback_round.round_type == "individual_feedback"
+        and feedback_round.subject_user_id == user.id
+    ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Round subject cannot submit feedback",
@@ -556,7 +642,7 @@ def close_feedback_round(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> FeedbackRoundSummary:
-    feedback_round = _subject_round(db, round_id, user.id)
+    feedback_round = _round_for_creator(db, round_id, user.id)
     if feedback_round.status != "open":
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -575,7 +661,7 @@ def get_feedback_results(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> FeedbackResults:
-    feedback_round = _subject_round(db, round_id, user.id)
+    feedback_round = _round_for_results(db, round_id, user.id)
     if feedback_round.status != "closed":
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,

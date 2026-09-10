@@ -199,8 +199,10 @@ class FeedbackRoundSummary {
     required this.id,
     required this.groupId,
     required this.subjectUserId,
+    required this.createdByUserId,
     required this.questionnaireId,
     required this.questionnaireSlug,
+    required this.roundType,
     required this.status,
     required this.minResponses,
     required this.createdAt,
@@ -210,22 +212,29 @@ class FeedbackRoundSummary {
 
   final String id;
   final String groupId;
-  final String subjectUserId;
+  final String? subjectUserId;
+  final String createdByUserId;
   final String questionnaireId;
   final String questionnaireSlug;
+  final String roundType;
   final String status;
   final int minResponses;
   final DateTime createdAt;
   final DateTime? openedAt;
   final DateTime? closedAt;
 
+  bool get isGroupHealth => roundType == 'group_health';
+  bool get isIndividualFeedback => roundType == 'individual_feedback';
+
   factory FeedbackRoundSummary.fromJson(Map<String, dynamic> json) {
     return FeedbackRoundSummary(
       id: json['id'] as String,
       groupId: json['groupId'] as String,
-      subjectUserId: json['subjectUserId'] as String,
+      subjectUserId: json['subjectUserId'] as String?,
+      createdByUserId: json['createdByUserId'] as String,
       questionnaireId: json['questionnaireId'] as String,
       questionnaireSlug: json['questionnaireSlug'] as String,
+      roundType: json['roundType'] as String,
       status: json['status'] as String,
       minResponses: json['minResponses'] as int,
       createdAt: DateTime.parse(json['createdAt'] as String),
@@ -240,8 +249,10 @@ class FeedbackRoundDetail extends FeedbackRoundSummary {
     required super.id,
     required super.groupId,
     required super.subjectUserId,
+    required super.createdByUserId,
     required super.questionnaireId,
     required super.questionnaireSlug,
+    required super.roundType,
     required super.status,
     required super.minResponses,
     required super.createdAt,
@@ -256,9 +267,11 @@ class FeedbackRoundDetail extends FeedbackRoundSummary {
     return FeedbackRoundDetail(
       id: json['id'] as String,
       groupId: json['groupId'] as String,
-      subjectUserId: json['subjectUserId'] as String,
+      subjectUserId: json['subjectUserId'] as String?,
+      createdByUserId: json['createdByUserId'] as String,
       questionnaireId: json['questionnaireId'] as String,
       questionnaireSlug: json['questionnaireSlug'] as String,
+      roundType: json['roundType'] as String,
       status: json['status'] as String,
       minResponses: json['minResponses'] as int,
       createdAt: DateTime.parse(json['createdAt'] as String),

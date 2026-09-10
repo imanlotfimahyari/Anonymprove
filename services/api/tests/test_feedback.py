@@ -52,6 +52,25 @@ def _round(
     return response.json()
 
 
+def _group_health_round(
+    client: TestClient,
+    creator: dict[str, str],
+    group: dict[str, str],
+    min_responses: int = 3,
+) -> dict[str, object]:
+    response = client.post(
+        f"/api/v1/groups/{group['id']}/feedback-rounds",
+        headers=_auth(creator),
+        json={
+            "roundType": "group_health",
+            "minResponses": min_responses,
+        },
+    )
+
+    assert response.status_code == 201
+    return response.json()
+
+
 def _open(client: TestClient, owner: dict[str, str], round_: dict[str, object]) -> None:
     response = client.post(
         f"/api/v1/feedback-rounds/{round_['id']}/open",
@@ -111,6 +130,31 @@ def test_core_questionnaire_is_available_to_authenticated_user(client: TestClien
     assert body["version"] == 1
     assert len(body["questions"]) == 8
     assert body["questions"][0]["kind"] == "scale"
+    assert body["questions"][-1]["kind"] == "text"
+
+
+def test_core_group_health_questionnaire_is_available(
+    client: TestClient,
+) -> None:
+    user = _user(client)
+
+    response = client.get(
+        "/api/v1/questionnaires/core-group-health-v1",
+        headers=_auth(user),
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert body["slug"] == "core-group-health-v1"
+    assert body["version"] == 1
+    assert body["status"] == "published"
+    assert len(body["questions"]) == 8
+
+    assert body["questions"][0]["key"] == "communication"
+    assert body["questions"][0]["kind"] == "scale"
+    assert body["questions"][-1]["key"] == "improvement"
     assert body["questions"][-1]["kind"] == "text"
 
 
@@ -392,3 +436,173 @@ def test_non_subject_cannot_close_or_read_results(client: TestClient) -> None:
         headers=_auth(members[0]),
     )
     assert results.status_code == 404
+
+
+def test_group_health_round_uses_group_health_questionnaire(
+    client: TestClient,
+) -> None:
+    owner, _, group = _group_with_members(
+        client,
+        member_count=2,
+    )
+
+    round_ = _group_health_round(
+        client,
+        owner,
+        group,
+    )
+
+    assert round_["roundType"] == "group_health"
+    assert round_["subjectUserId"] is None
+    assert round_["createdByUserId"] == owner["userId"]
+    assert round_["questionnaireSlug"] == "core-group-health-v1"
+
+
+def test_group_health_round_can_open_with_three_total_members(
+    client: TestClient,
+) -> None:
+    owner, _, group = _group_with_members(
+        client,
+        member_count=2,
+    )
+
+    round_ = _group_health_round(
+        client,
+        owner,
+        group,
+    )
+
+    response = client.post(
+        f"/api/v1/feedback-rounds/{round_['id']}/open",
+        headers=_auth(owner),
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "open"
+
+
+def test_group_health_creator_can_claim_response_credential(
+    client: TestClient,
+) -> None:
+    owner, _, group = _group_with_members(
+        client,
+        member_count=2,
+    )
+
+    round_ = _group_health_round(
+        client,
+        owner,
+        group,
+    )
+
+    _open(client, owner, round_)
+
+    response = client.post(
+        f"/api/v1/feedback-rounds/{round_['id']}/credentials",
+        headers=_auth(owner),
+    )
+
+    assert response.status_code == 201
+    assert response.json()["responseToken"]
+
+
+def test_only_group_health_creator_can_manage_round(
+    client: TestClient,
+) -> None:
+    owner, members, group = _group_with_members(
+        client,
+        member_count=2,
+    )
+
+    round_ = _group_health_round(
+        client,
+        owner,
+        group,
+    )
+
+    unauthorized_open = client.post(
+        f"/api/v1/feedback-rounds/{round_['id']}/open",
+        headers=_auth(members[0]),
+    )
+
+    assert unauthorized_open.status_code == 404
+
+    _open(client, owner, round_)
+
+    unauthorized_close = client.post(
+        f"/api/v1/feedback-rounds/{round_['id']}/close",
+        headers=_auth(members[0]),
+    )
+
+    assert unauthorized_close.status_code == 404
+
+
+def test_group_health_results_are_available_to_group_members(
+    client: TestClient,
+) -> None:
+    owner, members, group = _group_with_members(
+        client,
+        member_count=2,
+    )
+
+    participants = [owner, *members]
+
+    round_ = _group_health_round(
+        client,
+        owner,
+        group,
+    )
+
+    _open(client, owner, round_)
+
+    detail = _detail(
+        client,
+        owner,
+        round_,
+    )
+
+    for index, participant in enumerate(
+        participants,
+        start=1,
+    ):
+        token = _claim(
+            client,
+            participant,
+            round_,
+        )
+
+        _submit(
+            client,
+            round_,
+            token,
+            _answers(
+                detail,
+                3 + (index % 2),
+                f"Group improvement {index}.",
+            ),
+        )
+
+    close = client.post(
+        f"/api/v1/feedback-rounds/{round_['id']}/close",
+        headers=_auth(owner),
+    )
+
+    assert close.status_code == 200
+
+    for participant in participants:
+        results = client.get(
+            f"/api/v1/feedback-rounds/{round_['id']}/results",
+            headers=_auth(participant),
+        )
+
+        assert results.status_code == 200
+        assert results.json()["responseCount"] == 3
+
+    outsider = _user(client)
+
+    outsider_results = client.get(
+        f"/api/v1/feedback-rounds/{round_['id']}/results",
+        headers=_auth(outsider),
+    )
+
+    assert outsider_results.status_code == 404

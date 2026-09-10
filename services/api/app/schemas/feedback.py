@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import Field, model_validator
@@ -37,12 +38,19 @@ class QuestionnaireSummary(ApiModel):
 
 
 class CreateFeedbackRoundRequest(ApiModel):
-    questionnaire_slug: str | None = Field(default=None, min_length=2, max_length=64)
+    questionnaire_slug: str | None = Field(
+        default=None,
+        min_length=2,
+        max_length=64,
+    )
     questionnaire_id: UUID | None = None
+    round_type: Literal["individual_feedback", "group_health"] = "individual_feedback"
     min_responses: int = Field(default=3, ge=3, le=10)
 
     @model_validator(mode="after")
-    def only_one_questionnaire_selector(self) -> "CreateFeedbackRoundRequest":
+    def only_one_questionnaire_selector(
+        self,
+    ) -> "CreateFeedbackRoundRequest":
         if self.questionnaire_slug is not None and self.questionnaire_id is not None:
             raise ValueError("Choose questionnaireSlug or questionnaireId, not both")
         return self
@@ -51,9 +59,11 @@ class CreateFeedbackRoundRequest(ApiModel):
 class FeedbackRoundSummary(ApiModel):
     id: UUID
     group_id: UUID
-    subject_user_id: UUID
+    subject_user_id: UUID | None
+    created_by_user_id: UUID
     questionnaire_id: UUID
     questionnaire_slug: str
+    round_type: Literal["individual_feedback", "group_health"]
     status: str
     min_responses: int
     created_at: datetime

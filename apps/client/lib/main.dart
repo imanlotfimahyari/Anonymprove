@@ -254,9 +254,10 @@ class _GroupsPageState extends State<GroupsPage> {
                 ? const Center(child: CircularProgressIndicator())
                 : _groups.isEmpty
                 ? const _EmptyState(
-                    icon: Icons.group_outlined,
-                    title: 'No groups yet',
-                    message: 'Create a group or join one with a join code.',
+                    icon: Icons.forum_outlined,
+                    title: 'No assessments yet',
+                    message:
+                        'Request personal feedback or start a group health assessment.',
                   )
                 : RefreshIndicator(
                     onRefresh: _reload,
@@ -363,7 +364,7 @@ class _GroupPageState extends State<GroupPage> {
     }
   }
 
-  Future<void> _createRound() async {
+  Future<void> _createFeedbackRound() async {
     setState(() => _creating = true);
     try {
       final questionnaires = await widget.api.listQuestionnaires(
@@ -372,7 +373,11 @@ class _GroupPageState extends State<GroupPage> {
       );
       if (!mounted) return;
       final published = questionnaires
-          .where((item) => item.status == 'published')
+          .where(
+            (item) =>
+                item.status == 'published' &&
+                item.slug != 'core-group-health-v1',
+          )
           .toList();
       final selected = await _selectQuestionnaireDialog(context, published);
       if (selected == null || !mounted) return;
@@ -380,6 +385,7 @@ class _GroupPageState extends State<GroupPage> {
         widget.session.sessionToken,
         widget.group.id,
         questionnaireId: selected.id,
+        roundType: 'individual_feedback',
       );
       if (!mounted) return;
       await Navigator.of(context).push<void>(
@@ -396,6 +402,44 @@ class _GroupPageState extends State<GroupPage> {
       if (mounted) _showError(context, error);
     } finally {
       if (mounted) setState(() => _creating = false);
+    }
+  }
+
+  Future<void> _createGroupHealthRound() async {
+    setState(() => _creating = true);
+
+    try {
+      final round = await widget.api.createFeedbackRound(
+        widget.session.sessionToken,
+        widget.group.id,
+        roundType: 'group_health',
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute(
+          builder: (_) => RoundPage(
+            api: widget.api,
+            session: widget.session,
+            roundId: round.id,
+          ),
+        ),
+      );
+
+      if (mounted) {
+        await _reload();
+      }
+    } catch (error) {
+      if (mounted) {
+        _showError(context, error);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _creating = false);
+      }
     }
   }
 
@@ -443,14 +487,22 @@ class _GroupPageState extends State<GroupPage> {
                 separatorBuilder: (_, _) => const SizedBox(height: 8),
                 itemBuilder: (context, index) {
                   final round = _rounds[index];
-                  final isMine = round.subjectUserId == widget.session.userId;
+                  final isMine =
+                      round.isIndividualFeedback &&
+                      round.subjectUserId == widget.session.userId;
                   return Card(
                     child: ListTile(
                       leading: Icon(
-                        isMine ? Icons.person_outline : Icons.feedback_outlined,
+                        round.isGroupHealth
+                            ? Icons.monitor_heart_outlined
+                            : isMine
+                            ? Icons.person_outline
+                            : Icons.feedback_outlined,
                       ),
                       title: Text(
-                        isMine
+                        round.isGroupHealth
+                            ? 'Group health assessment'
+                            : isMine
                             ? 'Your feedback round'
                             : 'Group member feedback',
                       ),
@@ -477,15 +529,27 @@ class _GroupPageState extends State<GroupPage> {
                 },
               ),
             ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _creating ? null : _createRound,
-        icon: _creating
-            ? const SizedBox.square(
-                dimension: 18,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : const Icon(Icons.add_comment_outlined),
-        label: const Text('Request feedback'),
+      floatingActionButton: Wrap(
+        spacing: 12,
+        children: [
+          FloatingActionButton.extended(
+            heroTag: 'group-health',
+            onPressed: _creating ? null : _createGroupHealthRound,
+            icon: const Icon(Icons.monitor_heart_outlined),
+            label: const Text('Assess group health'),
+          ),
+          FloatingActionButton.extended(
+            heroTag: 'request-feedback',
+            onPressed: _creating ? null : _createFeedbackRound,
+            icon: _creating
+                ? const SizedBox.square(
+                    dimension: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.add_comment_outlined),
+            label: const Text('Request feedback'),
+          ),
+        ],
       ),
     );
   }
@@ -549,12 +613,19 @@ class _RoundPageState extends State<RoundPage> {
   }
 
   Future<void> _closeRound() async {
+    final isGroupHealth = _round?.isGroupHealth == true;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Close feedback round?'),
-        content: const Text(
-          'No more feedback can be submitted after the round is closed.',
+        title: Text(
+          isGroupHealth
+              ? 'Close group health assessment?'
+              : 'Close feedback round?',
+        ),
+        content: Text(
+          isGroupHealth
+              ? 'No more group-health responses can be submitted after the assessment is closed.'
+              : 'No more feedback can be submitted after the round is closed.',
         ),
         actions: [
           TextButton(
@@ -563,7 +634,7 @@ class _RoundPageState extends State<RoundPage> {
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Close round'),
+            child: Text(isGroupHealth ? 'Close assessment' : 'Close round'),
           ),
         ],
       ),
@@ -632,7 +703,11 @@ class _RoundPageState extends State<RoundPage> {
   Widget build(BuildContext context) {
     final round = _round;
     return Scaffold(
-      appBar: AppBar(title: const Text('Feedback round')),
+      appBar: AppBar(
+        title: Text(
+          round?.isGroupHealth == true ? 'Group health' : 'Feedback round',
+        ),
+      ),
       body: _loading || round == null
           ? const Center(child: CircularProgressIndicator())
           : ListView(
@@ -640,7 +715,10 @@ class _RoundPageState extends State<RoundPage> {
               children: [
                 _RoundStatusCard(
                   round: round,
-                  isSubject: round.subjectUserId == widget.session.userId,
+                  isSubject:
+                      round.isIndividualFeedback &&
+                      round.subjectUserId == widget.session.userId,
+                  isCreator: round.createdByUserId == widget.session.userId,
                 ),
                 const SizedBox(height: 16),
                 Text(
@@ -666,40 +744,76 @@ class _RoundPageState extends State<RoundPage> {
   }
 
   List<Widget> _actionsFor(FeedbackRoundDetail round) {
-    final isSubject = round.subjectUserId == widget.session.userId;
-    if (isSubject && round.status == 'draft') {
+    final isSubject =
+        round.isIndividualFeedback &&
+        round.subjectUserId == widget.session.userId;
+
+    final isCreator = round.createdByUserId == widget.session.userId;
+
+    if (round.status == 'draft') {
+      if (!isCreator) {
+        return [
+          const Text(
+            'This assessment has not been opened yet.',
+            textAlign: TextAlign.center,
+          ),
+        ];
+      }
+
       return [
         FilledButton.icon(
           onPressed: _changing ? null : _openRound,
           icon: const Icon(Icons.play_arrow),
-          label: const Text('Open round'),
+          label: Text(
+            round.isGroupHealth ? 'Open group health assessment' : 'Open round',
+          ),
         ),
         const SizedBox(height: 8),
-        const Text(
-          'Opening requires at least 3 other eligible group members.',
+        Text(
+          round.isGroupHealth
+              ? 'Opening requires at least ${round.minResponses} eligible group members in total.'
+              : 'Opening requires at least ${round.minResponses} other eligible group members.',
           textAlign: TextAlign.center,
         ),
       ];
     }
-    if (isSubject && round.status == 'open') {
-      return [
-        FilledButton.tonalIcon(
-          onPressed: _changing ? null : _closeRound,
-          icon: const Icon(Icons.stop_circle_outlined),
-          label: const Text('Close round'),
-        ),
-      ];
-    }
-    if (isSubject && round.status == 'closed') {
-      return [
-        FilledButton.icon(
-          onPressed: _viewResults,
-          icon: const Icon(Icons.bar_chart),
-          label: const Text('View aggregated results'),
-        ),
-      ];
-    }
-    if (!isSubject && round.status == 'open') {
+
+    if (round.status == 'open') {
+      if (round.isGroupHealth) {
+        return [
+          FilledButton.icon(
+            onPressed: () => _answer(round),
+            icon: const Icon(Icons.edit_note),
+            label: const Text('Answer anonymously'),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Your identity is used only to establish eligibility and issue one '
+            'response credential. The submitted answers do not contain your '
+            'session identity.',
+            textAlign: TextAlign.center,
+          ),
+          if (isCreator) ...[
+            const SizedBox(height: 16),
+            FilledButton.tonalIcon(
+              onPressed: _changing ? null : _closeRound,
+              icon: const Icon(Icons.stop_circle_outlined),
+              label: const Text('Close assessment'),
+            ),
+          ],
+        ];
+      }
+
+      if (isSubject) {
+        return [
+          FilledButton.tonalIcon(
+            onPressed: _changing ? null : _closeRound,
+            icon: const Icon(Icons.stop_circle_outlined),
+            label: const Text('Close round'),
+          ),
+        ];
+      }
+
       return [
         FilledButton.icon(
           onPressed: () => _answer(round),
@@ -709,11 +823,25 @@ class _RoundPageState extends State<RoundPage> {
         const SizedBox(height: 8),
         const Text(
           'Your identity is used to check eligibility and issue one response '
-          'credential. The feedback submission itself does not send your session token.',
+          'credential. The feedback submission itself does not send your '
+          'session token.',
           textAlign: TextAlign.center,
         ),
       ];
     }
+
+    if (round.status == 'closed') {
+      if (round.isGroupHealth || isSubject) {
+        return [
+          FilledButton.icon(
+            onPressed: _viewResults,
+            icon: const Icon(Icons.bar_chart),
+            label: const Text('View aggregated results'),
+          ),
+        ];
+      }
+    }
+
     return [
       const Text(
         'This round is not currently accepting responses.',
@@ -965,7 +1093,13 @@ class _FeedbackFormPageState extends State<FeedbackFormPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Anonymous feedback')),
+      appBar: AppBar(
+        title: Text(
+          widget.round.isGroupHealth
+              ? 'Anonymous group assessment'
+              : 'Anonymous feedback',
+        ),
+      ),
       body: Form(
         key: _formKey,
         child: ListView(
@@ -1134,10 +1268,15 @@ class _ResultsPageState extends State<ResultsPage> {
 }
 
 class _RoundStatusCard extends StatelessWidget {
-  const _RoundStatusCard({required this.round, required this.isSubject});
+  const _RoundStatusCard({
+    required this.round,
+    required this.isSubject,
+    required this.isCreator,
+  });
 
   final FeedbackRoundDetail round;
   final bool isSubject;
+  final bool isCreator;
 
   @override
   Widget build(BuildContext context) {
@@ -1148,7 +1287,9 @@ class _RoundStatusCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              isSubject
+              round.isGroupHealth
+                  ? 'Group health assessment'
+                  : isSubject
                   ? 'Your feedback request'
                   : 'Anonymous feedback request',
               style: Theme.of(context).textTheme.titleLarge,
@@ -1156,6 +1297,12 @@ class _RoundStatusCard extends StatelessWidget {
             const SizedBox(height: 8),
             Text('Status: ${round.status.toUpperCase()}'),
             Text('Privacy threshold: ${round.minResponses} responses'),
+            if (round.isGroupHealth)
+              Text(
+                isCreator
+                    ? 'You created this assessment and may also participate anonymously.'
+                    : 'Eligible group members may participate anonymously.',
+              ),
           ],
         ),
       ),
