@@ -142,6 +142,44 @@ void main() {
     expect(round.questionnaireSlug, 'core-group-health-v1');
   });
 
+  test(
+    'FastAPI validation errors are shown as readable field messages',
+    () async {
+      final client = MockClient((request) async {
+        return http.Response(
+          jsonEncode({
+            'detail': [
+              {
+                'type': 'string_too_short',
+                'loc': ['body', 'name'],
+                'msg': 'String should have at least 2 characters',
+                'input': '',
+              },
+            ],
+          }),
+          422,
+          headers: {'content-type': 'application/json'},
+        );
+      });
+
+      final api = HttpAnonymproveApi(
+        baseUrl: 'http://example.invalid',
+        client: client,
+      );
+
+      await expectLater(
+        api.createGroup('session-token', ''),
+        throwsA(
+          isA<ApiException>().having(
+            (error) => error.message,
+            'message',
+            'Name: String should have at least 2 characters',
+          ),
+        ),
+      );
+    },
+  );
+
   test('personal feedback remains the default round type', () async {
     final client = MockClient((request) async {
       final body = jsonDecode(request.body) as Map<String, dynamic>;

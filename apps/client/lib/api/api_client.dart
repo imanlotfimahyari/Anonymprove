@@ -356,12 +356,84 @@ class HttpAnonymproveApi implements AnonymproveApi {
   String _errorMessage(http.Response response) {
     try {
       final decoded = jsonDecode(response.body);
-      if (decoded is Map<String, dynamic> && decoded['detail'] is String) {
-        return decoded['detail'] as String;
+      if (decoded is Map<String, dynamic>) {
+        final detail = decoded['detail'];
+
+        if (detail is String) {
+          return detail;
+        }
+
+        if (detail is List) {
+          final messages = <String>[];
+
+          for (final item in detail) {
+            if (item is! Map<String, dynamic>) continue;
+
+            final message = item['msg'];
+            if (message is! String) continue;
+
+            final location = _validationLocation(item['loc']);
+            messages.add(location == null ? message : '$location: $message');
+          }
+
+          if (messages.isNotEmpty) {
+            return messages.join('\n');
+          }
+        }
       }
     } on FormatException {
-      // Fall through.
+      // Fall through to the generic HTTP error.
     }
+
     return 'Request failed (${response.statusCode})';
+  }
+
+  String? _validationLocation(dynamic rawLocation) {
+    if (rawLocation is! List) return null;
+
+    final location = rawLocation
+        .where((part) => part != 'body')
+        .toList(growable: false);
+
+    if (location.isEmpty) return null;
+
+    if (location.first == 'questions') {
+      var label = 'Question';
+
+      if (location.length > 1 && location[1] is int) {
+        label = 'Question ${(location[1] as int) + 1}';
+      }
+
+      if (location.length > 2) {
+        return '$label — ${_fieldLabel(location[2].toString())}';
+      }
+
+      return label;
+    }
+
+    return _fieldLabel(location.last.toString());
+  }
+
+  String _fieldLabel(String field) {
+    switch (field) {
+      case 'name':
+        return 'Name';
+      case 'description':
+        return 'Description';
+      case 'prompt':
+        return 'Question text';
+      case 'options':
+        return 'Choices';
+      case 'min_score':
+      case 'minScore':
+        return 'Minimum score';
+      case 'max_score':
+      case 'maxScore':
+        return 'Maximum score';
+      default:
+        final words = field.replaceAll('_', ' ');
+        if (words.isEmpty) return 'Field';
+        return '${words[0].toUpperCase()}${words.substring(1)}';
+    }
   }
 }
