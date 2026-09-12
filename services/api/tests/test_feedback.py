@@ -653,3 +653,37 @@ def test_response_credential_claim_attempts_are_rate_limited(
 
     assert blocked.status_code == 429
     assert int(blocked.headers["Retry-After"]) >= 1
+
+
+def test_privacy_sensitive_feedback_routes_are_not_request_logged(
+    client: TestClient,
+    caplog,
+) -> None:
+    import logging
+
+    from app.core.request_logging import REQUEST_LOGGER_NAME
+
+    owner, members, group = _group_with_members(client)
+    round_ = _round(client, owner, group)
+    _open(client, owner, round_)
+    detail = _detail(client, members[0], round_)
+    private_text = "private-response-text-must-not-be-logged"
+
+    caplog.clear()
+    with caplog.at_level(logging.INFO, logger=REQUEST_LOGGER_NAME):
+        token = _claim(client, members[0], round_)
+        _submit(
+            client,
+            round_,
+            token,
+            _answers(detail, 4, private_text),
+        )
+
+    messages = "\n".join(
+        record.getMessage() for record in caplog.records if record.name == REQUEST_LOGGER_NAME
+    )
+
+    assert "/credentials" not in messages
+    assert "/responses" not in messages
+    assert token not in messages
+    assert private_text not in messages

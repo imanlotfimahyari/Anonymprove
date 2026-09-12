@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     rate_limit_group_create_max_requests: int = Field(default=5, ge=1)
     rate_limit_round_create_max_requests: int = Field(default=10, ge=1)
     rate_limit_credential_claim_max_requests: int = Field(default=5, ge=1)
+    request_logging_enabled: bool = True
 
     @property
     def cors_origin_list(self) -> list[str]:

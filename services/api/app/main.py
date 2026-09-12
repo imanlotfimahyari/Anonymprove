@@ -3,10 +3,15 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import feedback, groups, health, questionnaires, users
 from app.core.config import get_settings
+from app.core.request_logging import (
+    SafeRequestLoggingMiddleware,
+    configure_privacy_logging,
+)
 
 
 def create_app() -> FastAPI:
     settings = get_settings()
+    configure_privacy_logging()
     application = FastAPI(
         title="Privacy Feedback API",
         version="0.6.0",
@@ -18,6 +23,10 @@ def create_app() -> FastAPI:
         allow_credentials=False,
         allow_methods=["GET", "POST", "PUT", "OPTIONS"],
         allow_headers=["Authorization", "Content-Type", "X-Response-Token"],
+    )
+    application.add_middleware(
+        SafeRequestLoggingMiddleware,
+        enabled=settings.request_logging_enabled,
     )
     application.include_router(health.router)
     application.include_router(users.router)
