@@ -7,7 +7,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     environment: str = "local"
     jwt_secret: SecretStr
-    jwt_ttl_minutes: int = 60
+    jwt_ttl_minutes: int = Field(default=60, ge=5, le=1440)
     jwt_algorithm: str = "HS256"
     database_url: str
     cors_origins: str = "http://127.0.0.1:8080,http://localhost:8080"
@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     rate_limit_round_create_max_requests: int = Field(default=10, ge=1)
     rate_limit_credential_claim_max_requests: int = Field(default=5, ge=1)
     request_logging_enabled: bool = True
+    credential_metadata_retention_days: int = Field(default=30, ge=1, le=365)
 
     @property
     def cors_origin_list(self) -> list[str]:

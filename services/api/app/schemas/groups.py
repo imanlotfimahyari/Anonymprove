@@ -31,3 +31,7 @@ class GroupSummary(ApiModel):
 
 class GroupCreatedResponse(GroupSummary):
     join_code: str
+
+
+class GroupJoinCodeResponse(ApiModel):
+    join_code: str

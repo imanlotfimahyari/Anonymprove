@@ -163,3 +163,101 @@ def test_group_creation_is_rate_limited(client: TestClient) -> None:
 
     assert blocked.status_code == 429
     assert int(blocked.headers["Retry-After"]) >= 1
+
+
+def test_owner_can_rotate_revoke_and_reenable_join_code(
+    client: TestClient,
+) -> None:
+    owner = _create_user(client)
+    member = _create_user(client)
+
+    created = client.post(
+        "/api/v1/groups",
+        headers=_auth(owner),
+        json={"name": "Lifecycle Group"},
+    )
+    assert created.status_code == 201
+    group = created.json()
+    old_code = group["joinCode"]
+
+    joined = client.post(
+        "/api/v1/groups/join",
+        headers=_auth(member),
+        json={"joinCode": old_code},
+    )
+    assert joined.status_code == 200
+
+    unauthorized_rotate = client.post(
+        f"/api/v1/groups/{group['id']}/join-code/rotate",
+        headers=_auth(member),
+    )
+    assert unauthorized_rotate.status_code == 404
+
+    rotated = client.post(
+        f"/api/v1/groups/{group['id']}/join-code/rotate",
+        headers=_auth(owner),
+    )
+    assert rotated.status_code == 200
+    new_code = rotated.json()["joinCode"]
+    assert new_code != old_code
+
+    outsider = _create_user(client)
+    old_code_join = client.post(
+        "/api/v1/groups/join",
+        headers=_auth(outsider),
+        json={"joinCode": old_code},
+    )
+    assert old_code_join.status_code == 404
+
+    new_code_join = client.post(
+        "/api/v1/groups/join",
+        headers=_auth(outsider),
+        json={"joinCode": new_code},
+    )
+    assert new_code_join.status_code == 200
+
+    revoked = client.delete(
+        f"/api/v1/groups/{group['id']}/join-code",
+        headers=_auth(owner),
+    )
+    assert revoked.status_code == 204
+
+    after_revoke_user = _create_user(client)
+    revoked_join = client.post(
+        "/api/v1/groups/join",
+        headers=_auth(after_revoke_user),
+        json={"joinCode": new_code},
+    )
+    assert revoked_join.status_code == 404
+
+    reenabled = client.post(
+        f"/api/v1/groups/{group['id']}/join-code/rotate",
+        headers=_auth(owner),
+    )
+    assert reenabled.status_code == 200
+    assert reenabled.json()["joinCode"] not in {old_code, new_code}
+
+
+def test_non_owner_cannot_revoke_join_code(client: TestClient) -> None:
+    owner = _create_user(client)
+    member = _create_user(client)
+
+    group = client.post(
+        "/api/v1/groups",
+        headers=_auth(owner),
+        json={"name": "Owner Only Group"},
+    ).json()
+
+    joined = client.post(
+        "/api/v1/groups/join",
+        headers=_auth(member),
+        json={"joinCode": group["joinCode"]},
+    )
+    assert joined.status_code == 200
+
+    response = client.delete(
+        f"/api/v1/groups/{group['id']}/join-code",
+        headers=_auth(member),
+    )
+
+    assert response.status_code == 404
