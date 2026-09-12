@@ -1,5 +1,7 @@
 from fastapi.testclient import TestClient
 
+from app.core.config import get_settings
+
 
 def _create_user(client: TestClient) -> dict[str, str]:
     response = client.post("/api/v1/users/session")
@@ -117,3 +119,47 @@ def test_group_name_cannot_be_only_whitespace(client: TestClient) -> None:
     )
 
     assert response.status_code == 422
+
+
+def test_join_attempts_are_rate_limited(client: TestClient) -> None:
+    settings = get_settings()
+    user = _create_user(client)
+
+    for _ in range(settings.rate_limit_join_max_requests):
+        response = client.post(
+            "/api/v1/groups/join",
+            headers=_auth(user),
+            json={"joinCode": "not-a-real-code"},
+        )
+        assert response.status_code == 404
+
+    blocked = client.post(
+        "/api/v1/groups/join",
+        headers=_auth(user),
+        json={"joinCode": "not-a-real-code"},
+    )
+
+    assert blocked.status_code == 429
+    assert int(blocked.headers["Retry-After"]) >= 1
+
+
+def test_group_creation_is_rate_limited(client: TestClient) -> None:
+    settings = get_settings()
+    user = _create_user(client)
+
+    for index in range(settings.rate_limit_group_create_max_requests):
+        response = client.post(
+            "/api/v1/groups",
+            headers=_auth(user),
+            json={"name": f"Group {index}"},
+        )
+        assert response.status_code == 201
+
+    blocked = client.post(
+        "/api/v1/groups",
+        headers=_auth(user),
+        json={"name": "One group too many"},
+    )
+
+    assert blocked.status_code == 429
+    assert int(blocked.headers["Retry-After"]) >= 1

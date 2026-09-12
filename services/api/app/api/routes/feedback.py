@@ -9,6 +9,8 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_user
+from app.core.config import get_settings
+from app.core.rate_limit import enforce_rate_limit
 from app.db.session import get_db
 from app.models.feedback import (
     AnonymousResponse,
@@ -299,6 +301,15 @@ def create_feedback_round(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> FeedbackRoundSummary:
+    settings = get_settings()
+    enforce_rate_limit(
+        enabled=settings.rate_limit_enabled,
+        scope="feedback-round-create",
+        subject=str(user.id),
+        max_requests=settings.rate_limit_round_create_max_requests,
+        window_seconds=settings.rate_limit_window_seconds,
+    )
+
     if _membership(db, group_id, user.id) is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Group not found")
 
@@ -411,6 +422,15 @@ def claim_response_credential(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Round subject cannot submit feedback",
         )
+
+    settings = get_settings()
+    enforce_rate_limit(
+        enabled=settings.rate_limit_enabled,
+        scope="response-credential-claim",
+        subject=f"{user.id}:{round_id}",
+        max_requests=settings.rate_limit_credential_claim_max_requests,
+        window_seconds=settings.rate_limit_window_seconds,
+    )
 
     existing_claim = db.scalar(
         select(CredentialClaim.id).where(

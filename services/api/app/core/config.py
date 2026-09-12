@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from pydantic import SecretStr
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -11,6 +11,12 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     database_url: str
     cors_origins: str = "http://127.0.0.1:8080,http://localhost:8080"
+    rate_limit_enabled: bool = True
+    rate_limit_window_seconds: int = Field(default=60, ge=1, le=3600)
+    rate_limit_join_max_requests: int = Field(default=10, ge=1)
+    rate_limit_group_create_max_requests: int = Field(default=5, ge=1)
+    rate_limit_round_create_max_requests: int = Field(default=10, ge=1)
+    rate_limit_credential_claim_max_requests: int = Field(default=5, ge=1)
 
     @property
     def cors_origin_list(self) -> list[str]:

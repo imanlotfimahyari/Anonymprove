@@ -4,6 +4,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.models.feedback import AnonymousResponse, Answer, CredentialClaim, ResponseCredential
 
 
@@ -606,3 +607,49 @@ def test_group_health_results_are_available_to_group_members(
     )
 
     assert outsider_results.status_code == 404
+
+
+def test_feedback_round_creation_is_rate_limited(client: TestClient) -> None:
+    settings = get_settings()
+    owner, _, group = _group_with_members(client, member_count=0)
+
+    for _ in range(settings.rate_limit_round_create_max_requests):
+        response = client.post(
+            f"/api/v1/groups/{group['id']}/feedback-rounds",
+            headers=_auth(owner),
+            json={"minResponses": 3},
+        )
+        assert response.status_code == 201
+
+    blocked = client.post(
+        f"/api/v1/groups/{group['id']}/feedback-rounds",
+        headers=_auth(owner),
+        json={"minResponses": 3},
+    )
+
+    assert blocked.status_code == 429
+    assert int(blocked.headers["Retry-After"]) >= 1
+
+
+def test_response_credential_claim_attempts_are_rate_limited(
+    client: TestClient,
+) -> None:
+    settings = get_settings()
+    owner, members, group = _group_with_members(client)
+    round_ = _round(client, owner, group)
+    _open(client, owner, round_)
+
+    endpoint = f"/api/v1/feedback-rounds/{round_['id']}/credentials"
+    headers = _auth(members[0])
+
+    first = client.post(endpoint, headers=headers)
+    assert first.status_code == 201
+
+    for _ in range(settings.rate_limit_credential_claim_max_requests - 1):
+        duplicate = client.post(endpoint, headers=headers)
+        assert duplicate.status_code == 409
+
+    blocked = client.post(endpoint, headers=headers)
+
+    assert blocked.status_code == 429
+    assert int(blocked.headers["Retry-After"]) >= 1
