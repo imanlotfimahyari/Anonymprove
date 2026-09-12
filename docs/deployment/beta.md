@@ -168,9 +168,39 @@ apps/client/build/web
 No API credential is required in the Flutter Web application. The API base URL
 is public configuration, not a secret.
 
-After Cloudflare Pages assigns the frontend hostname, replace the temporary
-Render `CORS_ORIGINS=https://example.invalid` value with the exact HTTPS
-frontend origin.
+The beta frontend is deployed at:
+
+```text
+https://anonymprove-web-beta.pages.dev
+```
+
+Render `CORS_ORIGINS` is configured to that exact HTTPS origin.
+
+## Cloudflare Pages deployment
+
+The Flutter Web beta is deployed as a Cloudflare Pages Direct Upload project:
+
+- project: `anonymprove-web-beta`;
+- production branch metadata: `main`;
+- public URL: `https://anonymprove-web-beta.pages.dev`;
+- build output: `apps/client/build/web`;
+- API endpoint compiled into the Web bundle:
+  `https://anonymprove-api-beta.onrender.com`.
+
+Build:
+
+```text
+flutter build web --release --dart-define=API_BASE_URL=https://anonymprove-api-beta.onrender.com
+```
+
+Deploy:
+
+```text
+npx wrangler@latest pages deploy apps/client/build/web --project-name=anonymprove-web-beta --branch=main
+```
+
+The Pages hostname is public configuration and is the exact browser origin
+allowed by Render CORS.
 
 ## Privacy boundary during deployment
 

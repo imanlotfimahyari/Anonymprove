@@ -35,3 +35,6 @@ flutter_export_environment.sh
 .idea/
 .DS_Store
 Thumbs.db
+
+# Cloudflare Wrangler local state
+.wrangler/
