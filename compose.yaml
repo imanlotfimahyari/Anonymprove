@@ -32,13 +32,15 @@ services:
       RATE_LIMIT_CREDENTIAL_CLAIM_MAX_REQUESTS: ${RATE_LIMIT_CREDENTIAL_CLAIM_MAX_REQUESTS:-5}
       REQUEST_LOGGING_ENABLED: ${REQUEST_LOGGING_ENABLED:-true}
       CREDENTIAL_METADATA_RETENTION_DAYS: ${CREDENTIAL_METADATA_RETENTION_DAYS:-30}
+      TRUSTED_HOSTS: "${TRUSTED_HOSTS:-*}"
+      SECURITY_HEADERS_ENABLED: ${SECURITY_HEADERS_ENABLED:-true}
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-privacy_feedback}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-privacy_feedback}
     depends_on:
       db:
         condition: service_healthy
     command: >-
       sh -c "alembic -c alembic.ini upgrade head &&
-      uvicorn app.main:app --host 0.0.0.0 --port 8000 --no-access-log"
+      uvicorn app.main:app --host 0.0.0.0 --port 8000 --no-access-log --no-server-header --no-date-header"
     ports:
       - "8000:8000"
     restart: unless-stopped
