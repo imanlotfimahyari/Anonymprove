@@ -22,7 +22,7 @@ class Group(Base):
 
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
     name: Mapped[str] = mapped_column(String(80), nullable=False)
-    join_code_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    join_code_hash: Mapped[str | None] = mapped_column(String(64), nullable=True, unique=True)
     created_by: Mapped[UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )

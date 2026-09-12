@@ -7,11 +7,14 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_user
+from app.core.config import get_settings
+from app.core.rate_limit import enforce_rate_limit
 from app.db.session import get_db
 from app.models.identity import Group, GroupMember, User
 from app.schemas.groups import (
     CreateGroupRequest,
     GroupCreatedResponse,
+    GroupJoinCodeResponse,
     GroupSummary,
     JoinGroupRequest,
 )
@@ -45,12 +48,36 @@ def _summary(group: Group, role: str) -> GroupSummary:
     )
 
 
+def _owned_group(db: Session, group_id: UUID, user_id: UUID) -> Group:
+    group = db.scalar(
+        select(Group).where(
+            Group.id == group_id,
+            Group.created_by == user_id,
+        )
+    )
+    if group is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Group not found",
+        )
+    return group
+
+
 @router.post("", response_model=GroupCreatedResponse, status_code=status.HTTP_201_CREATED)
 def create_group(
     request: CreateGroupRequest,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> GroupCreatedResponse:
+    settings = get_settings()
+    enforce_rate_limit(
+        enabled=settings.rate_limit_enabled,
+        scope="group-create",
+        subject=str(user.id),
+        max_requests=settings.rate_limit_group_create_max_requests,
+        window_seconds=settings.rate_limit_window_seconds,
+    )
+
     join_code, join_code_hash = _new_join_code(db)
     group = Group(name=request.name, join_code_hash=join_code_hash, created_by=user.id)
     db.add(group)
@@ -71,6 +98,15 @@ def join_group(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> GroupSummary:
+    settings = get_settings()
+    enforce_rate_limit(
+        enabled=settings.rate_limit_enabled,
+        scope="group-join",
+        subject=str(user.id),
+        max_requests=settings.rate_limit_join_max_requests,
+        window_seconds=settings.rate_limit_window_seconds,
+    )
+
     group = db.scalar(
         select(Group).where(Group.join_code_hash == _hash_join_code(request.join_code))
     )
@@ -89,6 +125,30 @@ def join_group(
         db.commit()
 
     return _summary(group, membership.role)
+
+
+@router.post("/{group_id}/join-code/rotate", response_model=GroupJoinCodeResponse)
+def rotate_join_code(
+    group_id: UUID,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> GroupJoinCodeResponse:
+    group = _owned_group(db, group_id, user.id)
+    join_code, join_code_hash = _new_join_code(db)
+    group.join_code_hash = join_code_hash
+    db.commit()
+    return GroupJoinCodeResponse(join_code=join_code)
+
+
+@router.delete("/{group_id}/join-code", status_code=status.HTTP_204_NO_CONTENT)
+def revoke_join_code(
+    group_id: UUID,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> None:
+    group = _owned_group(db, group_id, user.id)
+    group.join_code_hash = None
+    db.commit()
 
 
 @router.get("", response_model=list[GroupSummary])
