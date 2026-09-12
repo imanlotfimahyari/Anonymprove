@@ -11,7 +11,7 @@ Cloudflare Pages
       |
       | HTTPS
       v
-Koyeb FRA
+Render Frankfurt
   FastAPI
       |
       | encrypted PostgreSQL connection
@@ -35,97 +35,61 @@ At startup it:
 5. keeps Uvicorn access/server/date headers disabled as defined by the M7
    privacy-hardening policy.
 
-The image health check also reads `PORT` and calls `/health/live`.
+The image health check reads `PORT` and calls `/health/ready`.
 
 For the beta, run a single API instance. Migration-on-start is deliberately
 simple for one replica. Before horizontal scale-out, move schema migration to a
 dedicated release/migration job so multiple replicas cannot race on startup.
 
-## Koyeb API settings
+## Render API deployment
 
-Use a Git-driven Dockerfile deployment:
+The beta API is deployed as a Render Web Service:
 
 - repository: `imanlotfimahyari/Anonymprove`;
-- production branch: `main`;
-- work directory: `services/api`;
-- Dockerfile: `Dockerfile`;
-- region: Frankfurt (`fra`);
-- service type: Web;
-- exposed port: `8000`;
-- protocol: HTTP;
-- route: `/`;
-- health check: HTTP `/health/ready` on port `8000`;
-- replicas for beta: `1`.
+- beta branch: `feature/m8-deployment-beta`;
+- root directory: `services/api`;
+- language/runtime: Docker;
+- Docker build context: `.`;
+- Dockerfile: `./Dockerfile`;
+- region: Frankfurt (EU Central);
+- compute: Free;
+- health check: `/health/ready`;
+- auto-deploy: on commit;
+- public beta API: `https://anonymprove-api-beta.onrender.com`.
 
-The Docker image itself runs as the non-root `appuser`.
+After M8 is merged, production tracking should move from the feature branch to
+`main`.
 
-Use `deploy/koyeb/api.env.example` as the non-secret environment-variable
+The Docker image runs as the non-root `appuser`.
+
+Use `deploy/render/api.env.example` as the non-secret environment-variable
 checklist.
 
-Configure these values as provider secrets:
+Configure these values in Render's Environment page and never commit them:
 
 - `JWT_SECRET`;
 - `DATABASE_URL`.
 
-Do not put either value in Git, screenshots, issue text, PR descriptions, or
-chat messages.
-
 Production startup is intentionally fail-closed if `CORS_ORIGINS` or
-`TRUSTED_HOSTS` contains a wildcard.
+`TRUSTED_HOSTS` contains an unsafe wildcard configuration.
+
+Render supplies the `PORT` environment variable automatically. The image uses
+that value without a provider-specific start-command override.
+
+The free Render instance may spin down after inactivity. Cold-start latency is
+acceptable for the pre-beta environment but must be considered during testing.
 
 ## Neon database
 
-M8B will create the beta PostgreSQL database, validate TLS connection settings,
-apply the migration chain, and test the credential-metadata retention command.
+The beta PostgreSQL database is hosted by Neon in AWS Europe Central 1
+(Frankfurt / `eu-central-1`).
 
-The database connection string must be stored only as the Koyeb
-`DATABASE_URL` secret.
+The application currently uses the direct Neon endpoint rather than the pooled
+endpoint because the single beta container also executes Alembic migrations at
+startup.
 
-## Flutter Web / Cloudflare Pages
-
-The Flutter client receives its API endpoint at compile time through:
-
-```text
---dart-define=API_BASE_URL=https://<api-host>
-```
-
-Therefore the public Koyeb API hostname must exist before the production Web
-bundle is built.
-
-M8D will add the reproducible Cloudflare Pages deployment workflow after the
-API endpoint is known. The intended static output is:
-
-```text
-apps/client/build/web
-```
-
-No API credential is required in the Flutter Web application. The API base URL
-is public configuration, not a secret.
-
-## Privacy boundary during deployment
-
-The in-application M7 controls do not automatically govern provider-generated
-metadata.
-
-Before external beta use, M8E must explicitly review:
-
-- Koyeb edge/request metadata and retention;
-- Cloudflare request/analytics settings;
-- Neon connection/logging metadata;
-- provider access controls;
-- secrets and operator permissions;
-- backup retention;
-- shared/edge abuse controls;
-- scheduled credential-metadata cleanup;
-- TLS and custom-domain configuration.
-
-Do not describe the hosted system as cryptographically anonymous.
-
-## M8B database transport and readiness
-
-Production database configuration is validated before use.
-
-Accepted production PostgreSQL transport policies are:
+The production connection URL is validated before migrations/application use.
+Accepted PostgreSQL transport policies are:
 
 ```text
 sslmode=verify-full
@@ -138,33 +102,91 @@ or the Neon console style:
 sslmode=require&channel_binding=require
 ```
 
-A production URL without one of those policies fails closed before migrations or
-application startup.
+Client-side TLS was verified through the Psycopg/libpq connection used by the
+application.
 
 The SQLAlchemy engine uses `pool_pre_ping` and a bounded connection recycle
-interval (`DATABASE_POOL_RECYCLE_SECONDS`, default 300 seconds) so stale
-serverless database connections are replaced.
+interval (`DATABASE_POOL_RECYCLE_SECONDS`, default 300 seconds).
 
-The API now exposes:
+## Health and readiness
+
+The API exposes:
 
 ```text
 /health/live
 /health/ready
 ```
 
-`/health/live` only proves the API process is alive. `/health/ready` performs a
-minimal database query and should be used by the hosted service health check.
+`/health/live` proves the API process is alive.
 
-The credential-metadata cleanup command supports a safe preview:
+`/health/ready` performs a minimal database query and is the hosted service
+health check.
+
+The public beta readiness endpoint is:
+
+```text
+https://anonymprove-api-beta.onrender.com/health/ready
+```
+
+Production API documentation/OpenAPI endpoints remain disabled.
+
+## Credential-metadata retention
+
+The cleanup command supports a safe preview:
 
 ```text
 python -m app.maintenance --dry-run
 ```
 
-and the actual purge remains:
+The actual purge remains:
 
 ```text
 python -m app.maintenance
 ```
 
-Run the dry-run before enabling any scheduled purge.
+The real Neon beta database was validated with the dry-run path before any
+scheduled deletion is enabled.
+
+Scheduling the purge is an M8 operational task.
+
+## Flutter Web / Cloudflare Pages
+
+The Flutter client receives its API endpoint at compile time through:
+
+```text
+--dart-define=API_BASE_URL=https://anonymprove-api-beta.onrender.com
+```
+
+M8D deploys the static Flutter Web output to Cloudflare Pages.
+
+The intended static output is:
+
+```text
+apps/client/build/web
+```
+
+No API credential is required in the Flutter Web application. The API base URL
+is public configuration, not a secret.
+
+After Cloudflare Pages assigns the frontend hostname, replace the temporary
+Render `CORS_ORIGINS=https://example.invalid` value with the exact HTTPS
+frontend origin.
+
+## Privacy boundary during deployment
+
+The in-application M7 controls do not automatically govern provider-generated
+metadata.
+
+Before external beta use, M8E must explicitly review:
+
+- Render request/platform metadata and retention;
+- Cloudflare request/analytics settings;
+- Neon connection/logging metadata;
+- provider access controls;
+- secrets and operator permissions;
+- backup retention;
+- shared/edge abuse controls;
+- scheduled credential-metadata cleanup;
+- TLS and custom-domain configuration.
+
+Do not describe the hosted system as cryptographically anonymous.
