@@ -46,7 +46,7 @@ dedicated release/migration job so multiple replicas cannot race on startup.
 The beta API is deployed as a Render Web Service:
 
 - repository: `imanlotfimahyari/Anonymprove`;
-- beta branch: `feature/m8-deployment-beta`;
+- deployment branch: `main`;
 - root directory: `services/api`;
 - language/runtime: Docker;
 - Docker build context: `.`;
@@ -56,9 +56,6 @@ The beta API is deployed as a Render Web Service:
 - health check: `/health/ready`;
 - auto-deploy: on commit;
 - public beta API: `https://anonymprove-api-beta.onrender.com`.
-
-After M8 is merged, production tracking should move from the feature branch to
-`main`.
 
 The Docker image runs as the non-root `appuser`.
 
@@ -144,10 +141,17 @@ The actual purge remains:
 python -m app.maintenance
 ```
 
-The real Neon beta database was validated with the dry-run path before any
-scheduled deletion is enabled.
+The real Neon beta database was validated with the dry-run path before
+scheduled deletion was enabled.
 
-Scheduling the purge is an M8 operational task.
+For the beta, GitHub Actions runs the maintenance workflow daily at 03:17 UTC:
+
+```text
+.github/workflows/retention-maintenance.yml
+```
+
+The workflow first executes a dry run and then performs the purge. Its Neon
+database URL is stored only as the repository secret `BETA_DATABASE_URL`.
 
 ## Flutter Web / Cloudflare Pages
 
@@ -157,7 +161,7 @@ The Flutter client receives its API endpoint at compile time through:
 --dart-define=API_BASE_URL=https://anonymprove-api-beta.onrender.com
 ```
 
-M8D deploys the static Flutter Web output to Cloudflare Pages.
+The static Flutter Web output is deployed to Cloudflare Pages.
 
 The intended static output is:
 
@@ -207,16 +211,49 @@ allowed by Render CORS.
 The in-application M7 controls do not automatically govern provider-generated
 metadata.
 
-Before external beta use, M8E must explicitly review:
+The M8 provider-boundary review is recorded in
+`docs/security/m8-provider-review.md`.
 
-- Render request/platform metadata and retention;
-- Cloudflare request/analytics settings;
-- Neon connection/logging metadata;
-- provider access controls;
-- secrets and operator permissions;
-- backup retention;
-- shared/edge abuse controls;
-- scheduled credential-metadata cleanup;
-- TLS and custom-domain configuration.
+The application does not control all provider-generated metadata. Render,
+Cloudflare, Neon, and GitHub may process operational metadata required to run
+their services. Database backup/recovery systems may also retain deleted data
+for some period outside the live database.
 
-Do not describe the hosted system as cryptographically anonymous.
+The beta therefore continues to claim only logical/schema-level unlinkability,
+not cryptographic anonymity.
+
+## Live beta validation
+
+The M8 release candidate was validated against the public deployment:
+
+- `GET /health/live` returned `200` with `{"status":"ok"}`;
+- `GET /health/ready` returned `200` with `{"status":"ready"}`;
+- `/docs` returned `404` in production;
+- `/openapi.json` returned `404` in production;
+- a CORS preflight from `https://anonymprove-web-beta.pages.dev` to the
+  session endpoint returned the exact allowed origin;
+- security middleware returned `Cache-Control: no-store`,
+  `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`,
+  `Referrer-Policy: no-referrer`, and the configured `Permissions-Policy`;
+- the public Flutter Web beta loaded and could reach the hosted API.
+
+A `HEAD` request to `/health/live` returns `405` because the health route is
+defined for `GET`; the security middleware still applies its response headers.
+
+## Android beta release
+
+Android release builds use a private upload keystore configured locally through
+`apps/client/android/key.properties`.
+
+The keystore and passwords are not committed. The release App Bundle was
+verified with `jarsigner`, and the embedded signer SHA-256 fingerprint matched
+the private upload-keystore certificate.
+
+The application ID remains:
+
+```text
+io.github.imanlotfimahyari.anonymprove
+```
+
+The Android release build points to the same public HTTPS API endpoint as the
+Web beta.

@@ -1,6 +1,6 @@
 # Data retention and lifecycle
 
-This document records the current M7 lifecycle and retention behavior.
+This document records the current M8 lifecycle and retention behavior.
 
 ## Sessions
 
@@ -45,8 +45,13 @@ Deleting claim and credential metadata therefore reduces retained
 identity-adjacent data without creating or requiring an identity-to-response
 mapping.
 
-The maintenance command is not automatically scheduled by the application.
-Production deployment must run it on an appropriate schedule.
+The application process does not schedule its own cleanup. In the beta
+deployment, GitHub Actions runs `.github/workflows/retention-maintenance.yml`
+daily at 03:17 UTC. The workflow performs a dry run first and then executes the
+purge against the Neon beta database.
+
+The database URL used by that maintenance job is stored as the GitHub repository
+secret `BETA_DATABASE_URL`; it must never be committed or printed.
 
 ## Anonymous feedback
 

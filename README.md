@@ -6,13 +6,12 @@ The product is intended for self-improvement and group awareness, not for rankin
 
 ## Status
 
-Current milestone: **M7 — privacy and abuse hardening completed**
+Current milestone: **M8 — deployment and beta completed**
 
-Next milestone: **M8 — deployment and beta**
+The project now has a **public beta deployment** for validation and early testing.
+It is not presented as a production-grade anonymity system.
 
-The project is currently **pre-beta** and intended for development/testing rather than production use.
-
-Implemented through M7:
+Implemented through M8:
 
 - PostgreSQL-backed users, groups, and memberships
 - private session-based identity
@@ -39,6 +38,11 @@ Implemented through M7:
 - closed-round credential-metadata retention controls
 - production host/CORS validation and conservative security headers
 - API, Flutter, Docker, and Android build checks in CI
+- hosted Flutter Web beta on Cloudflare Pages
+- hosted FastAPI beta on Render
+- hosted PostgreSQL beta on Neon
+- scheduled credential-metadata retention maintenance through GitHub Actions
+- Android release builds signed with a private upload key kept outside the repository
 
 ## Core privacy model
 
@@ -106,6 +110,25 @@ docs/
 compose.yaml                Local PostgreSQL + API stack
 ```
 
+## Public beta
+
+The current beta endpoints are:
+
+```text
+Web: https://anonymprove-web-beta.pages.dev
+API: https://anonymprove-api-beta.onrender.com
+```
+
+The API production deployment keeps Swagger/OpenAPI disabled. The public Web
+client is configured to call the HTTPS Render API, and CORS is restricted to the
+Cloudflare Pages origin.
+
+The deployment remains a beta environment. Provider-generated metadata,
+infrastructure/operator access, timing side channels, and backup/recovery
+systems remain outside the application's schema-level unlinkability guarantee.
+
+See `docs/deployment/beta.md` and `docs/security/m8-provider-review.md`.
+
 ## Backend development
 
 Requirements:
@@ -171,7 +194,7 @@ http://127.0.0.1:8000/docs
 
 ## Flutter development
 
-The supported client targets through M6 are **Web and Android**.
+The supported client targets through M8 are **Web and Android**.
 
 Install dependencies:
 
@@ -233,7 +256,13 @@ The Android application ID is:
 io.github.imanlotfimahyari.anonymprove
 ```
 
-The current release-signing configuration is development-only. Do not treat current Android builds as production/store releases.
+Android release builds use a private upload keystore configured through
+`android/key.properties`. The keystore and signing credentials are intentionally
+excluded from Git and must remain outside the repository.
+
+The signed Android App Bundle is suitable for beta/store upload workflows, but
+Google Play release management and Play App Signing remain separate operational
+steps.
 
 ## Functional feedback flows
 
@@ -381,5 +410,7 @@ make migrate-api
 - **M7 — Privacy and abuse hardening** ✅
   Abuse-rate boundaries, privacy-safe logging, join-code lifecycle, credential-metadata retention, runtime HTTP hardening, and threat-model review.
 
-- **M8 — Deployment and beta**
-  Hosted deployment, production configuration, observability, release process, and early-user validation.
+- **M8 — Deployment and beta** ✅
+  Render/Neon/Cloudflare beta deployment, production runtime hardening,
+  scheduled credential-metadata retention, Android release signing, live
+  health/CORS/security-header validation, and beta release documentation.
