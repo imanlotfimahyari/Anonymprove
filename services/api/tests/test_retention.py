@@ -147,3 +147,78 @@ def test_purge_removes_credential_metadata_but_keeps_anonymous_feedback(
         == anonymous_before
     )
     assert db.scalar(select(func.count()).select_from(Answer)) == answer_before
+
+
+def test_retention_dry_run_counts_without_deleting(
+    client: TestClient,
+    db: Session,
+) -> None:
+    owner = _user(client)
+    members = [_user(client) for _ in range(3)]
+
+    group = client.post(
+        "/api/v1/groups",
+        headers=_auth(owner),
+        json={"name": "Retention Dry Run Group"},
+    ).json()
+
+    for member in members:
+        joined = client.post(
+            "/api/v1/groups/join",
+            headers=_auth(member),
+            json={"joinCode": group["joinCode"]},
+        )
+        assert joined.status_code == 200
+
+    created_round = client.post(
+        f"/api/v1/groups/{group['id']}/feedback-rounds",
+        headers=_auth(owner),
+        json={"minResponses": 3},
+    )
+    assert created_round.status_code == 201
+    round_ = created_round.json()
+
+    opened = client.post(
+        f"/api/v1/feedback-rounds/{round_['id']}/open",
+        headers=_auth(owner),
+    )
+    assert opened.status_code == 200
+
+    claim = client.post(
+        f"/api/v1/feedback-rounds/{round_['id']}/credentials",
+        headers=_auth(members[0]),
+    )
+    assert claim.status_code == 201
+
+    round_id = UUID(round_["id"])
+    persisted_round = db.get(FeedbackRound, round_id)
+    assert persisted_round is not None
+    persisted_round.status = "closed"
+    persisted_round.closed_at = datetime.now(UTC) - timedelta(days=31)
+    db.commit()
+
+    from app.core.retention import count_closed_round_credential_metadata
+
+    counts = count_closed_round_credential_metadata(
+        db,
+        older_than=datetime.now(UTC) - timedelta(days=30),
+    )
+
+    assert counts.credential_claims == 1
+    assert counts.response_credentials == 1
+    assert (
+        db.scalar(
+            select(func.count())
+            .select_from(CredentialClaim)
+            .where(CredentialClaim.round_id == round_id)
+        )
+        == 1
+    )
+    assert (
+        db.scalar(
+            select(func.count())
+            .select_from(ResponseCredential)
+            .where(ResponseCredential.round_id == round_id)
+        )
+        == 1
+    )

@@ -4,11 +4,14 @@ from sqlalchemy import engine_from_config, pool
 
 from alembic import context
 from app.core.config import get_settings
+from app.core.database_security import validate_database_url
 from app.db.base import Base
 from app.models import feedback, identity  # noqa: F401
 
 config = context.config
-config.set_main_option("sqlalchemy.url", get_settings().database_url)
+settings = get_settings()
+validate_database_url(settings)
+config.set_main_option("sqlalchemy.url", settings.database_url)
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)

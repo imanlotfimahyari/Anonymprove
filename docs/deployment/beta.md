@@ -54,7 +54,7 @@ Use a Git-driven Dockerfile deployment:
 - exposed port: `8000`;
 - protocol: HTTP;
 - route: `/`;
-- health check: HTTP `/health/live` on port `8000`;
+- health check: HTTP `/health/ready` on port `8000`;
 - replicas for beta: `1`.
 
 The Docker image itself runs as the non-root `appuser`.
@@ -120,3 +120,51 @@ Before external beta use, M8E must explicitly review:
 - TLS and custom-domain configuration.
 
 Do not describe the hosted system as cryptographically anonymous.
+
+## M8B database transport and readiness
+
+Production database configuration is validated before use.
+
+Accepted production PostgreSQL transport policies are:
+
+```text
+sslmode=verify-full
+sslmode=verify-ca
+```
+
+or the Neon console style:
+
+```text
+sslmode=require&channel_binding=require
+```
+
+A production URL without one of those policies fails closed before migrations or
+application startup.
+
+The SQLAlchemy engine uses `pool_pre_ping` and a bounded connection recycle
+interval (`DATABASE_POOL_RECYCLE_SECONDS`, default 300 seconds) so stale
+serverless database connections are replaced.
+
+The API now exposes:
+
+```text
+/health/live
+/health/ready
+```
+
+`/health/live` only proves the API process is alive. `/health/ready` performs a
+minimal database query and should be used by the hosted service health check.
+
+The credential-metadata cleanup command supports a safe preview:
+
+```text
+python -m app.maintenance --dry-run
+```
+
+and the actual purge remains:
+
+```text
+python -m app.maintenance
+```
+
+Run the dry-run before enabling any scheduled purge.
