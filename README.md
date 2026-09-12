@@ -6,13 +6,13 @@ The product is intended for self-improvement and group awareness, not for rankin
 
 ## Status
 
-Current milestone: **M6 — group-health mode completed**
+Current milestone: **M7 — privacy and abuse hardening completed**
 
-Next milestone: **M7 — privacy and abuse hardening**
+Next milestone: **M8 — deployment and beta**
 
 The project is currently **pre-beta** and intended for development/testing rather than production use.
 
-Implemented through M6:
+Implemented through M7:
 
 - PostgreSQL-backed users, groups, and memberships
 - private session-based identity
@@ -33,6 +33,11 @@ Implemented through M6:
 - creator-inclusive group-health participation
 - thresholded group-wide aggregate results
 - longitudinal group-health history with per-dimension changes
+- process-local abuse rate limits on identity-side sensitive operations
+- privacy-safe request logging with anonymity-boundary routes suppressed
+- join-code rotation and revocation
+- closed-round credential-metadata retention controls
+- production host/CORS validation and conservative security headers
 - API, Flutter, Docker, and Android build checks in CI
 
 ## Core privacy model
@@ -55,7 +60,7 @@ The current schema records which user claimed eligibility for a round, but anony
 
 This provides **logical/schema-level unlinkability**, not cryptographic anonymity. A sufficiently privileged database or infrastructure operator may still be able to infer relationships using operational metadata such as timing, logs, request metadata, or other side channels.
 
-See `docs/security/threat-model.md` and `SECURITY.md`.
+See `docs/security/threat-model.md`, `docs/security/m7-review.md`, `docs/security/data-retention.md`, and `SECURITY.md`.
 
 ## Architecture
 
@@ -373,8 +378,8 @@ make migrate-api
 - **M6 — Group-health mode** ✅
   Anonymous group-level assessment, creator-inclusive participation, thresholded group results, and aggregate longitudinal history.
 
-- **M7 — Privacy and abuse hardening**
-  Abuse controls, privacy review, rate limiting, moderation-related safeguards, and operational hardening.
+- **M7 — Privacy and abuse hardening** ✅
+  Abuse-rate boundaries, privacy-safe logging, join-code lifecycle, credential-metadata retention, runtime HTTP hardening, and threat-model review.
 
 - **M8 — Deployment and beta**
   Hosted deployment, production configuration, observability, release process, and early-user validation.

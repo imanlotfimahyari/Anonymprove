@@ -144,9 +144,11 @@ afterward.
 
 Current status: not cryptographically prevented.
 
-Mitigations for later review may include operational log minimization,
-aggregation, delayed processing, or stronger anonymous credential protocols if
-the product threat model requires them.
+M7 reduces application-owned correlation metadata by disabling Uvicorn access
+logs, logging only low-sensitivity route metadata, and suppressing per-request
+logging for credential claim and anonymous submission routes. This does not
+prevent correlation through infrastructure, network, database, backup, or
+other privileged operational data.
 
 ### Free-text identification
 
@@ -178,19 +180,27 @@ membership/subject identity.
 Headers, request bodies, tokens, tracing baggage, IP metadata, or verbose access
 logs can undermine schema-level unlinkability.
 
-Current requirement: application logs must not contain bearer tokens, response
-credentials, join codes, or raw feedback bodies.
+M7 disables Uvicorn access logs and uses an application-owned logger that avoids
+headers, query strings, bodies, client addresses, user IDs, join codes, bearer
+tokens, and response credentials. Credential-claim and anonymous-submission
+routes are excluded from per-request logging.
 
-A full production observability review remains part of hardening.
+A production observability review is still required for external proxies,
+platform logs, traces, databases, and network metadata.
 
 ### Abuse of anonymity
 
 Anonymous text can be used for harassment, coercion, retaliation, or targeted
 abuse.
 
-Current status: structured questions and privacy warnings reduce risk, but M7
-must address rate limiting, abuse controls, reporting/moderation safeguards,
-retention, and operational controls.
+M7 adds configurable process-local abuse limits to group join attempts, group
+creation, feedback-round creation, and credential claims. Structured questions,
+minimum-response thresholds, round controls, and privacy warnings provide
+additional baseline safeguards.
+
+Automated moderation, blocking, and abuse-report workflows are not currently
+implemented. Free text therefore remains both an abuse surface and a possible
+source of responder identification.
 
 ## Data model invariants
 
@@ -241,19 +251,19 @@ person.
 - automated psychological diagnosis;
 - AI-based inference about individual responders.
 
-## Required M7 review
+## M7 hardening review
 
-Before production/beta exposure, review:
+The in-repository M7 hardening review is complete. Implemented controls include
+identity-side abuse rate limits, privacy-safe request logging, join-code
+rotation/revocation, credential-metadata retention, trusted-host/CORS production
+validation, and conservative HTTP response headers.
 
-- rate limiting and abuse controls;
-- logging and tracing configuration;
-- reverse-proxy/access-log metadata;
-- data retention and deletion;
-- backup/privacy implications;
-- session and join-code lifecycle;
-- free-text safeguards;
-- operational access controls;
-- production transport security;
-- Android release signing;
-- whether the logical unlinkability model is sufficient for the intended user
-  population and threat model.
+The central identity-to-anonymous-submission boundary remains unchanged.
+
+Residual deployment concerns include shared edge rate limiting, reverse-proxy
+and infrastructure logs, backup retention, operational access controls, TLS
+termination, scheduled retention maintenance, Android release signing, and
+whether stronger cryptographic anonymity is needed for future populations.
+
+See `m7-review.md` and `data-retention.md` for the detailed review and lifecycle
+policy.

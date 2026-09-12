@@ -58,9 +58,13 @@ Do not merge identity/session authentication into the anonymous submission endpo
 
 ## Abuse and operational limitations
 
-The current milestones do not yet provide the complete M7 abuse/privacy-hardening layer. Rate limiting, abuse controls, moderation safeguards, retention policy, and production observability review remain future work.
+M7 provides a baseline hardening layer: configurable process-local rate limits protect identity-side sensitive operations; Uvicorn access logs are disabled; application request logging excludes secrets, client addresses, bodies, and the credential-claim/anonymous-submission routes; group owners can rotate or revoke join codes; old closed-round credential metadata can be purged; and production runtime configuration rejects wildcard CORS/trusted-host settings.
 
-Minimum-response thresholds reduce small-group deanonymization risk but do not prevent contextual, timing, or stylometric identification.
+These controls are deliberately limited. Rate limits are not shared across workers and can be partially bypassed by creating new sessions. Future reverse proxies, CDNs, load balancers, infrastructure logs, traces, and backups require separate deployment review. JWTs are not individually revocable before expiry. Automated moderation/reporting is not implemented.
+
+Minimum-response thresholds reduce small-group deanonymization risk but do not prevent contextual, timing, network-level, or stylometric identification.
+
+See `docs/security/m7-review.md` and `docs/security/data-retention.md` for the reviewed M7 boundary and remaining deployment obligations.
 
 ## Android release security
 
