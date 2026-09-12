@@ -82,6 +82,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Save this join code'), findsOneWidget);
+    expect(find.text('Copy code'), findsOneWidget);
     expect(tester.takeException(), isNull);
 
     await tester.tap(find.text('I saved it'));

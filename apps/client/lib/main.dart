@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'api/api_client.dart';
 import 'models/models.dart';
@@ -210,15 +211,26 @@ class _GroupsPageState extends State<GroupsPage> {
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Save this join code'),
         content: SelectableText(
           '$joinCode\n\nShare it only with people you want in this group. '
           'The API does not expose the code again later.',
         ),
         actions: [
+          OutlinedButton.icon(
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: joinCode));
+              if (!mounted) return;
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(const SnackBar(content: Text('Join code copied')));
+            },
+            icon: const Icon(Icons.copy_outlined),
+            label: const Text('Copy code'),
+          ),
           FilledButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('I saved it'),
           ),
         ],

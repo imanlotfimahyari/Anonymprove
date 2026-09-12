@@ -114,7 +114,13 @@ class _QuestionnairesPageState extends State<QuestionnairesPage> {
         title: const Text('Questionnaires'),
         actions: [
           IconButton(
+            onPressed: _create,
+            tooltip: 'New questionnaire',
+            icon: const Icon(Icons.add),
+          ),
+          IconButton(
             onPressed: _loading ? null : _reload,
+            tooltip: 'Refresh',
             icon: const Icon(Icons.refresh),
           ),
         ],
@@ -150,11 +156,6 @@ class _QuestionnairesPageState extends State<QuestionnairesPage> {
                   ),
               ],
             ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _create,
-        icon: const Icon(Icons.add),
-        label: const Text('New questionnaire'),
-      ),
     );
   }
 }
@@ -410,8 +411,11 @@ class _QuestionnaireEditorPageState extends State<QuestionnaireEditorPage> {
             const SizedBox(height: 12),
             TextFormField(
               controller: _nameController,
+              maxLength: 120,
+              autovalidateMode: AutovalidateMode.onUserInteraction,
               decoration: const InputDecoration(
                 labelText: 'Questionnaire title',
+                helperText: 'Example: Team communication and collaboration',
                 border: OutlineInputBorder(),
               ),
               validator: (value) =>
@@ -423,7 +427,9 @@ class _QuestionnaireEditorPageState extends State<QuestionnaireEditorPage> {
               maxLines: 3,
               maxLength: 1000,
               decoration: const InputDecoration(
-                labelText: 'Description / instructions',
+                labelText: 'Description / instructions (optional)',
+                helperText:
+                    'Example: Think about how we worked together during the last month.',
                 border: OutlineInputBorder(),
               ),
             ),
@@ -555,13 +561,22 @@ class _QuestionEditorCard extends StatelessWidget {
                 onChanged();
               },
             ),
+            const SizedBox(height: 6),
+            Text(
+              _questionKindHelper(question.kind),
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
             const SizedBox(height: 12),
             TextFormField(
               initialValue: question.prompt,
               maxLines: isDescription ? 3 : 2,
               maxLength: 500,
+              autovalidateMode: AutovalidateMode.onUserInteraction,
               decoration: InputDecoration(
                 labelText: isDescription ? 'Information text' : 'Question',
+                helperText: isDescription
+                    ? 'Example: Read this before answering the next questions.'
+                    : 'Keep it about observable behavior, not personality or identity.',
                 border: const OutlineInputBorder(),
               ),
               onChanged: (value) => question.prompt = value,
@@ -623,8 +638,10 @@ class _QuestionEditorCard extends StatelessWidget {
               TextFormField(
                 initialValue: question.options.join('\n'),
                 maxLines: 5,
+                autovalidateMode: AutovalidateMode.onUserInteraction,
                 decoration: const InputDecoration(
                   labelText: 'Options (one per line)',
+                  helperText: 'Example: Rarely\nSometimes\nOften',
                   border: OutlineInputBorder(),
                 ),
                 onChanged: (value) {
@@ -701,6 +718,25 @@ class _EditableQuestion {
         ? options
         : const [],
   );
+}
+
+String _questionKindHelper(String kind) {
+  switch (kind) {
+    case 'scale':
+      return 'Rating scale: useful for measurable patterns, for example communication clarity.';
+    case 'single_choice':
+      return 'Single choice: the respondent selects exactly one option.';
+    case 'multiple_choice':
+      return 'Multiple choice: the respondent may select several options.';
+    case 'short_text':
+      return 'Short text: best for one concise observation or suggestion.';
+    case 'long_text':
+      return 'Long text: use when a more detailed constructive answer is useful.';
+    case 'description':
+      return 'Information only: shown to respondents; no answer is collected.';
+    default:
+      return '';
+  }
 }
 
 String _kindLabel(QuestionSummary question) {
