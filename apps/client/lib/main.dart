@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -606,39 +608,166 @@ class RoundPage extends StatefulWidget {
 
 class _RoundPageState extends State<RoundPage> {
   FeedbackRoundDetail? _round;
+  FeedbackRoundProgress? _progress;
+  Timer? _refreshTimer;
   bool _loading = true;
   bool _changing = false;
+  bool _refreshing = false;
 
   @override
   void initState() {
     super.initState();
     _reload();
+
+    _refreshTimer = Timer.periodic(
+      const Duration(seconds: 30),
+      (_) => _reload(showLoading: false),
+    );
   }
 
-  Future<void> _reload() async {
-    setState(() => _loading = true);
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _reload({bool showLoading = true}) async {
+    if (_refreshing) return;
+
+    _refreshing = true;
+
+    if (showLoading && mounted) {
+      setState(() => _loading = true);
+    }
+
     try {
       final round = await widget.api.getFeedbackRound(
         widget.session.sessionToken,
         widget.roundId,
       );
+
+      FeedbackRoundProgress? progress;
+
+      if (round.createdByUserId == widget.session.userId) {
+        progress = await widget.api.getFeedbackRoundProgress(
+          widget.session.sessionToken,
+          widget.roundId,
+        );
+      }
+
       if (mounted) {
-        setState(() => _round = round);
+        setState(() {
+          _round = round;
+          _progress = progress;
+        });
       }
     } catch (error) {
-      if (mounted) {
+      if (mounted && showLoading) {
         _showError(context, error);
       }
     } finally {
-      if (mounted) {
+      _refreshing = false;
+
+      if (mounted && showLoading) {
         setState(() => _loading = false);
       }
     }
   }
 
+  Future<int?> _selectResponseWindow({required String title}) {
+    return showDialog<int>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: Text(title),
+        children: [
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, 60),
+            child: const Text('1 hour'),
+          ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, 360),
+            child: const Text('6 hours'),
+          ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, 1440),
+            child: const Text('24 hours · recommended'),
+          ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, 4320),
+            child: const Text('3 days'),
+          ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, 10080),
+            child: const Text('7 days'),
+          ),
+          const Divider(),
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _openRound() async {
+    final minutes = await _selectResponseWindow(
+      title: 'How long should people have to respond?',
+    );
+
+    if (minutes == null || !mounted) return;
+
     await _changeRound(() {
       return widget.api.openFeedbackRound(
+        widget.session.sessionToken,
+        widget.roundId,
+        responseWindowMinutes: minutes,
+      );
+    });
+  }
+
+  Future<void> _extendRound() async {
+    final minutes = await _selectResponseWindow(
+      title: 'Extend the response period by',
+    );
+
+    if (minutes == null || !mounted) return;
+
+    await _changeRound(() {
+      return widget.api.extendFeedbackRound(
+        widget.session.sessionToken,
+        widget.roundId,
+        responseWindowMinutes: minutes,
+      );
+    });
+  }
+
+  Future<void> _endWithoutResults() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('End without results?'),
+        content: const Text(
+          'The privacy threshold was not reached. This permanently ends the '
+          'round without exposing partial results.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('End without results'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    await _changeRound(() {
+      return widget.api.endFeedbackRoundWithoutResults(
         widget.session.sessionToken,
         widget.roundId,
       );
@@ -647,6 +776,7 @@ class _RoundPageState extends State<RoundPage> {
 
   Future<void> _closeRound() async {
     final isGroupHealth = _round?.isGroupHealth == true;
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -657,8 +787,10 @@ class _RoundPageState extends State<RoundPage> {
         ),
         content: Text(
           isGroupHealth
-              ? 'No more group-health responses can be submitted after the assessment is closed.'
-              : 'No more feedback can be submitted after the round is closed.',
+              ? 'The privacy threshold has been reached. No more group-health '
+                    'responses can be submitted after closing.'
+              : 'The privacy threshold has been reached. No more feedback can '
+                    'be submitted after closing.',
         ),
         actions: [
           TextButton(
@@ -672,9 +804,9 @@ class _RoundPageState extends State<RoundPage> {
         ],
       ),
     );
-    if (confirmed != true || !mounted) {
-      return;
-    }
+
+    if (confirmed != true || !mounted) return;
+
     await _changeRound(() {
       return widget.api.closeFeedbackRound(
         widget.session.sessionToken,
@@ -687,10 +819,12 @@ class _RoundPageState extends State<RoundPage> {
     Future<FeedbackRoundSummary> Function() action,
   ) async {
     setState(() => _changing = true);
+
     try {
       await action();
+
       if (mounted) {
-        await _reload();
+        await _reload(showLoading: false);
       }
     } catch (error) {
       if (mounted) {
@@ -713,10 +847,13 @@ class _RoundPageState extends State<RoundPage> {
         ),
       ),
     );
+
     if (submitted == true && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Feedback submitted anonymously.')),
       );
+
+      await _reload(showLoading: false);
     }
   }
 
@@ -736,11 +873,19 @@ class _RoundPageState extends State<RoundPage> {
   @override
   Widget build(BuildContext context) {
     final round = _round;
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
           round?.isGroupHealth == true ? 'Group health' : 'Feedback round',
         ),
+        actions: [
+          IconButton(
+            tooltip: 'Refresh',
+            onPressed: _refreshing ? null : () => _reload(showLoading: false),
+            icon: const Icon(Icons.refresh),
+          ),
+        ],
       ),
       body: _loading || round == null
           ? const Center(child: CircularProgressIndicator())
@@ -752,6 +897,12 @@ class _RoundPageState extends State<RoundPage> {
                   isSubject:
                       round.isIndividualFeedback &&
                       round.subjectUserId == widget.session.userId,
+                  isCreator: round.createdByUserId == widget.session.userId,
+                ),
+                const SizedBox(height: 12),
+                _RoundLifecycleCard(
+                  round: round,
+                  progress: _progress,
                   isCreator: round.createdByUserId == widget.session.userId,
                 ),
                 const SizedBox(height: 16),
@@ -805,14 +956,18 @@ class _RoundPageState extends State<RoundPage> {
         const SizedBox(height: 8),
         Text(
           round.isGroupHealth
-              ? 'Opening requires at least ${round.minResponses} eligible group members in total.'
-              : 'Opening requires at least ${round.minResponses} other eligible group members.',
+              ? 'Opening requires at least ${round.minResponses} eligible '
+                    'group members in total.'
+              : 'Opening requires at least ${round.minResponses} other '
+                    'eligible group members.',
           textAlign: TextAlign.center,
         ),
       ];
     }
 
     if (round.status == 'open') {
+      final thresholdMet = _progress?.thresholdMet == true;
+
       if (round.isGroupHealth) {
         return [
           FilledButton.icon(
@@ -830,10 +985,17 @@ class _RoundPageState extends State<RoundPage> {
           if (isCreator) ...[
             const SizedBox(height: 16),
             FilledButton.tonalIcon(
-              onPressed: _changing ? null : _closeRound,
+              onPressed: _changing || !thresholdMet ? null : _closeRound,
               icon: const Icon(Icons.stop_circle_outlined),
               label: const Text('Close assessment'),
             ),
+            if (!thresholdMet) ...[
+              const SizedBox(height: 8),
+              const Text(
+                'Closing becomes available after the privacy threshold is met.',
+                textAlign: TextAlign.center,
+              ),
+            ],
           ],
         ];
       }
@@ -841,10 +1003,17 @@ class _RoundPageState extends State<RoundPage> {
       if (isSubject) {
         return [
           FilledButton.tonalIcon(
-            onPressed: _changing ? null : _closeRound,
+            onPressed: _changing || !thresholdMet ? null : _closeRound,
             icon: const Icon(Icons.stop_circle_outlined),
             label: const Text('Close round'),
           ),
+          if (!thresholdMet) ...[
+            const SizedBox(height: 8),
+            const Text(
+              'Closing becomes available after the privacy threshold is met.',
+              textAlign: TextAlign.center,
+            ),
+          ],
         ];
       }
 
@@ -864,6 +1033,38 @@ class _RoundPageState extends State<RoundPage> {
       ];
     }
 
+    if (round.status == 'expired') {
+      if (isCreator) {
+        return [
+          FilledButton.icon(
+            onPressed: _changing ? null : _extendRound,
+            icon: const Icon(Icons.update),
+            label: const Text('Extend response period'),
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: _changing ? null : _endWithoutResults,
+            icon: const Icon(Icons.block_outlined),
+            label: const Text('End without results'),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'The deadline passed before the privacy threshold was reached. '
+            'Partial results remain hidden.',
+            textAlign: TextAlign.center,
+          ),
+        ];
+      }
+
+      return [
+        const Text(
+          'The response deadline passed before enough responses were received. '
+          'The round creator can extend it or end it without results.',
+          textAlign: TextAlign.center,
+        ),
+      ];
+    }
+
     if (round.status == 'closed') {
       if (round.isGroupHealth || isSubject) {
         return [
@@ -876,6 +1077,16 @@ class _RoundPageState extends State<RoundPage> {
       }
     }
 
+    if (round.status == 'closed_no_results') {
+      return [
+        const Text(
+          'This round ended without results because the privacy threshold was '
+          'not reached.',
+          textAlign: TextAlign.center,
+        ),
+      ];
+    }
+
     return [
       const Text(
         'This round is not currently accepting responses.',
@@ -883,6 +1094,93 @@ class _RoundPageState extends State<RoundPage> {
       ),
     ];
   }
+}
+
+class _RoundLifecycleCard extends StatelessWidget {
+  const _RoundLifecycleCard({
+    required this.round,
+    required this.progress,
+    required this.isCreator,
+  });
+
+  final FeedbackRoundDetail round;
+  final FeedbackRoundProgress? progress;
+  final bool isCreator;
+
+  @override
+  Widget build(BuildContext context) {
+    final deadline = round.responseDeadlineAt;
+    final progress = this.progress;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Round lifecycle',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            if (deadline == null)
+              const Text('Response deadline: not set yet')
+            else ...[
+              Text('Response deadline: ${_formatRoundDeadline(deadline)}'),
+              if (round.status == 'open') Text(_remainingTimeLabel(deadline)),
+            ],
+            if (isCreator && progress != null) ...[
+              const SizedBox(height: 8),
+              Text('Responses received: ${progress.responseCount}'),
+              Text('Minimum required: ${progress.minResponses}'),
+              const SizedBox(height: 4),
+              Text(
+                progress.thresholdMet
+                    ? 'Privacy threshold reached.'
+                    : 'Privacy threshold not reached yet.',
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'Only the anonymous response count is shown; respondent '
+                'identities are not exposed.',
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+String _formatRoundDeadline(DateTime deadline) {
+  final local = deadline.toLocal();
+
+  final month = local.month.toString().padLeft(2, '0');
+  final day = local.day.toString().padLeft(2, '0');
+  final hour = local.hour.toString().padLeft(2, '0');
+  final minute = local.minute.toString().padLeft(2, '0');
+
+  return '${local.year}-$month-$day $hour:$minute';
+}
+
+String _remainingTimeLabel(DateTime deadline) {
+  final remaining = deadline.toUtc().difference(DateTime.now().toUtc());
+
+  if (remaining <= Duration.zero) {
+    return 'Deadline reached';
+  }
+
+  if (remaining.inDays >= 1) {
+    final hours = remaining.inHours.remainder(24);
+    return 'Time remaining: ${remaining.inDays}d ${hours}h';
+  }
+
+  if (remaining.inHours >= 1) {
+    final minutes = remaining.inMinutes.remainder(60);
+    return 'Time remaining: ${remaining.inHours}h ${minutes}m';
+  }
+
+  return 'Time remaining: ${remaining.inMinutes.clamp(1, 59)}m';
 }
 
 class FeedbackFormPage extends StatefulWidget {

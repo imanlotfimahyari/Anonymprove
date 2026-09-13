@@ -50,6 +50,20 @@ abstract class AnonymproveApi {
   );
   Future<FeedbackRoundSummary> openFeedbackRound(
     String sessionToken,
+    String roundId, {
+    int responseWindowMinutes = 1440,
+  });
+  Future<FeedbackRoundProgress> getFeedbackRoundProgress(
+    String sessionToken,
+    String roundId,
+  );
+  Future<FeedbackRoundSummary> extendFeedbackRound(
+    String sessionToken,
+    String roundId, {
+    required int responseWindowMinutes,
+  });
+  Future<FeedbackRoundSummary> endFeedbackRoundWithoutResults(
+    String sessionToken,
     String roundId,
   );
   Future<FeedbackRoundSummary> closeFeedbackRound(
@@ -256,11 +270,54 @@ class HttpAnonymproveApi implements AnonymproveApi {
   @override
   Future<FeedbackRoundSummary> openFeedbackRound(
     String sessionToken,
+    String roundId, {
+    int responseWindowMinutes = 1440,
+  }) async {
+    final json = await _request(
+      'POST',
+      '/api/v1/feedback-rounds/$roundId/open',
+      sessionToken: sessionToken,
+      body: {'responseWindowMinutes': responseWindowMinutes},
+    );
+    return FeedbackRoundSummary.fromJson(json as Map<String, dynamic>);
+  }
+
+  @override
+  Future<FeedbackRoundProgress> getFeedbackRoundProgress(
+    String sessionToken,
+    String roundId,
+  ) async {
+    final json = await _request(
+      'GET',
+      '/api/v1/feedback-rounds/$roundId/progress',
+      sessionToken: sessionToken,
+    );
+    return FeedbackRoundProgress.fromJson(json as Map<String, dynamic>);
+  }
+
+  @override
+  Future<FeedbackRoundSummary> extendFeedbackRound(
+    String sessionToken,
+    String roundId, {
+    required int responseWindowMinutes,
+  }) async {
+    final json = await _request(
+      'POST',
+      '/api/v1/feedback-rounds/$roundId/extend',
+      sessionToken: sessionToken,
+      body: {'responseWindowMinutes': responseWindowMinutes},
+    );
+    return FeedbackRoundSummary.fromJson(json as Map<String, dynamic>);
+  }
+
+  @override
+  Future<FeedbackRoundSummary> endFeedbackRoundWithoutResults(
+    String sessionToken,
     String roundId,
   ) async {
     final json = await _request(
       'POST',
-      '/api/v1/feedback-rounds/$roundId/open',
+      '/api/v1/feedback-rounds/$roundId/end-without-results',
       sessionToken: sessionToken,
     );
     return FeedbackRoundSummary.fromJson(json as Map<String, dynamic>);
