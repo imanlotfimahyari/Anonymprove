@@ -1,6 +1,6 @@
 import hashlib
 import secrets
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 from uuid import UUID
 
@@ -28,9 +28,12 @@ from app.schemas.feedback import (
     ChoiceOptionResult,
     ChoiceQuestionResult,
     CreateFeedbackRoundRequest,
+    ExtendFeedbackRoundRequest,
     FeedbackResults,
     FeedbackRoundDetail,
+    FeedbackRoundProgress,
     FeedbackRoundSummary,
+    OpenFeedbackRoundRequest,
     QuestionnaireSummary,
     QuestionOptionSummary,
     QuestionSummary,
@@ -211,6 +214,50 @@ def _round_for_creator(
     return feedback_round
 
 
+def _response_count(
+    db: Session,
+    round_id: UUID,
+) -> int:
+    count = db.scalar(
+        select(func.count())
+        .select_from(AnonymousResponse)
+        .where(AnonymousResponse.round_id == round_id)
+    )
+    return int(count or 0)
+
+
+def _utc_datetime(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
+
+
+def _refresh_round_lifecycle(
+    db: Session,
+    feedback_round: FeedbackRound,
+) -> FeedbackRound:
+    if feedback_round.status != "open" or feedback_round.response_deadline_at is None:
+        return feedback_round
+
+    now = datetime.now(UTC)
+    deadline = _utc_datetime(feedback_round.response_deadline_at)
+
+    if now < deadline:
+        return feedback_round
+
+    count = _response_count(db, feedback_round.id)
+
+    if count >= feedback_round.min_responses:
+        feedback_round.status = "closed"
+        feedback_round.closed_at = now
+    else:
+        feedback_round.status = "expired"
+
+    db.commit()
+    db.refresh(feedback_round)
+    return feedback_round
+
+
 def _round_for_results(
     db: Session,
     round_id: UUID,
@@ -347,7 +394,13 @@ def list_feedback_rounds(
         .where(FeedbackRound.group_id == group_id)
         .order_by(FeedbackRound.created_at.desc())
     ).all()
-    return [_round_summary(db, feedback_round) for feedback_round in rounds]
+    return [
+        _round_summary(
+            db,
+            _refresh_round_lifecycle(db, feedback_round),
+        )
+        for feedback_round in rounds
+    ]
 
 
 @router.get("/feedback-rounds/{round_id}", response_model=FeedbackRoundDetail)
@@ -357,6 +410,7 @@ def get_feedback_round(
     db: Session = Depends(get_db),
 ) -> FeedbackRoundDetail:
     feedback_round = _round_for_member(db, round_id, user.id)
+    feedback_round = _refresh_round_lifecycle(db, feedback_round)
     questions = _questions_for_questionnaire(db, feedback_round.questionnaire_id)
     return FeedbackRoundDetail(
         **_round_summary(db, feedback_round).model_dump(),
@@ -367,6 +421,7 @@ def get_feedback_round(
 @router.post("/feedback-rounds/{round_id}/open", response_model=FeedbackRoundSummary)
 def open_feedback_round(
     round_id: UUID,
+    request: OpenFeedbackRoundRequest | None = None,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> FeedbackRoundSummary:
@@ -393,8 +448,12 @@ def open_feedback_round(
             detail="Not enough eligible group members for minimum response threshold",
         )
 
+    now = datetime.now(UTC)
+    response_window_minutes = request.response_window_minutes if request is not None else 1440
+
     feedback_round.status = "open"
-    feedback_round.opened_at = datetime.now(UTC)
+    feedback_round.opened_at = now
+    feedback_round.response_deadline_at = now + timedelta(minutes=response_window_minutes)
     db.commit()
     return _round_summary(db, feedback_round)
 
@@ -410,6 +469,8 @@ def claim_response_credential(
     db: Session = Depends(get_db),
 ) -> ResponseCredentialResponse:
     feedback_round = _round_for_member(db, round_id, user.id)
+    feedback_round = _refresh_round_lifecycle(db, feedback_round)
+
     if feedback_round.status != "open":
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -603,6 +664,9 @@ def submit_feedback(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Feedback round not found"
         )
+
+    feedback_round = _refresh_round_lifecycle(db, feedback_round)
+
     if feedback_round.status != "open":
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -664,15 +728,105 @@ def close_feedback_round(
     db: Session = Depends(get_db),
 ) -> FeedbackRoundSummary:
     feedback_round = _round_for_creator(db, round_id, user.id)
+    feedback_round = _refresh_round_lifecycle(db, feedback_round)
+
     if feedback_round.status != "open":
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Only open feedback rounds can be closed",
         )
 
+    if _response_count(db, feedback_round.id) < feedback_round.min_responses:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Minimum response threshold not met",
+        )
+
     feedback_round.status = "closed"
     feedback_round.closed_at = datetime.now(UTC)
     db.commit()
+    return _round_summary(db, feedback_round)
+
+
+@router.get(
+    "/feedback-rounds/{round_id}/progress",
+    response_model=FeedbackRoundProgress,
+)
+def get_feedback_round_progress(
+    round_id: UUID,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> FeedbackRoundProgress:
+    feedback_round = _round_for_creator(db, round_id, user.id)
+    feedback_round = _refresh_round_lifecycle(db, feedback_round)
+
+    response_count = _response_count(db, feedback_round.id)
+
+    return FeedbackRoundProgress(
+        round_id=feedback_round.id,
+        status=feedback_round.status,
+        response_count=response_count,
+        min_responses=feedback_round.min_responses,
+        threshold_met=response_count >= feedback_round.min_responses,
+        response_deadline_at=feedback_round.response_deadline_at,
+    )
+
+
+@router.post(
+    "/feedback-rounds/{round_id}/extend",
+    response_model=FeedbackRoundSummary,
+)
+def extend_feedback_round(
+    round_id: UUID,
+    request: ExtendFeedbackRoundRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> FeedbackRoundSummary:
+    feedback_round = _round_for_creator(db, round_id, user.id)
+    feedback_round = _refresh_round_lifecycle(db, feedback_round)
+
+    if feedback_round.status != "expired":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Only expired feedback rounds can be extended",
+        )
+
+    feedback_round.status = "open"
+    feedback_round.response_deadline_at = datetime.now(UTC) + timedelta(
+        minutes=request.response_window_minutes
+    )
+    feedback_round.closed_at = None
+
+    db.commit()
+    db.refresh(feedback_round)
+
+    return _round_summary(db, feedback_round)
+
+
+@router.post(
+    "/feedback-rounds/{round_id}/end-without-results",
+    response_model=FeedbackRoundSummary,
+)
+def end_feedback_round_without_results(
+    round_id: UUID,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> FeedbackRoundSummary:
+    feedback_round = _round_for_creator(db, round_id, user.id)
+    feedback_round = _refresh_round_lifecycle(db, feedback_round)
+
+    if feedback_round.status != "expired":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Only expired feedback rounds can be ended without results",
+        )
+
+    feedback_round.status = "closed_no_results"
+    feedback_round.closed_at = datetime.now(UTC)
+
+    db.commit()
+    db.refresh(feedback_round)
+
     return _round_summary(db, feedback_round)
 
 
@@ -683,6 +837,8 @@ def get_feedback_results(
     db: Session = Depends(get_db),
 ) -> FeedbackResults:
     feedback_round = _round_for_results(db, round_id, user.id)
+    feedback_round = _refresh_round_lifecycle(db, feedback_round)
+
     if feedback_round.status != "closed":
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
