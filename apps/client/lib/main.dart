@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import 'api/api_client.dart';
 import 'models/models.dart';
 import 'questionnaires/questionnaire_pages.dart';
+import 'results/playful_mascot.dart';
+import 'results/playful_result.dart';
 
 const _defaultApiBaseUrl = String.fromEnvironment(
   'API_BASE_URL',
@@ -718,13 +720,14 @@ class _RoundPageState extends State<RoundPage> {
     }
   }
 
-  Future<void> _viewResults() async {
+  Future<void> _viewResults(FeedbackRoundDetail round) async {
     await Navigator.of(context).push<void>(
       MaterialPageRoute(
         builder: (_) => ResultsPage(
           api: widget.api,
           session: widget.session,
           roundId: widget.roundId,
+          questionnaireSlug: round.questionnaireSlug,
         ),
       ),
     );
@@ -865,7 +868,7 @@ class _RoundPageState extends State<RoundPage> {
       if (round.isGroupHealth || isSubject) {
         return [
           FilledButton.icon(
-            onPressed: _viewResults,
+            onPressed: () => _viewResults(round),
             icon: const Icon(Icons.bar_chart),
             label: const Text('View aggregated results'),
           ),
@@ -1172,12 +1175,14 @@ class ResultsPage extends StatefulWidget {
     required this.api,
     required this.session,
     required this.roundId,
+    required this.questionnaireSlug,
     super.key,
   });
 
   final AnonymproveApi api;
   final SessionInfo session;
   final String roundId;
+  final String questionnaireSlug;
 
   @override
   State<ResultsPage> createState() => _ResultsPageState();
@@ -1448,6 +1453,13 @@ class _ResultsPageState extends State<ResultsPage> {
   Widget build(BuildContext context) {
     final error = _error;
     final results = _results;
+    final playful = results == null
+        ? null
+        : buildPlayfulResult(
+            results,
+            questionnaireSlug: widget.questionnaireSlug,
+          );
+
     return Scaffold(
       appBar: AppBar(title: const Text('Aggregated results')),
       body: error != null
@@ -1471,6 +1483,10 @@ class _ResultsPageState extends State<ResultsPage> {
                   ),
                 ),
                 const SizedBox(height: 16),
+                if (playful != null) ...[
+                  _PlayfulResultCard(result: playful),
+                  const SizedBox(height: 16),
+                ],
                 for (final result in results.scaleResults)
                   Card(
                     child: Padding(
@@ -1533,6 +1549,66 @@ class _ResultsPageState extends State<ResultsPage> {
                 ],
               ],
             ),
+    );
+  }
+}
+
+class _PlayfulResultCard extends StatelessWidget {
+  const _PlayfulResultCard({required this.result});
+
+  final PlayfulResult result;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                PlayfulMascot(character: result.character, size: 84),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Playful reflection',
+                        style: theme.textTheme.labelLarge,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(result.title, style: theme.textTheme.headlineSmall),
+                      const SizedBox(height: 8),
+                      Text(result.message),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            const Divider(),
+            const SizedBox(height: 8),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.info_outline, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    result.disclaimer,
+                    style: theme.textTheme.bodySmall,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
