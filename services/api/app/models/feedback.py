@@ -140,7 +140,7 @@ class FeedbackRound(Base):
         default="individual_feedback",
     )
     status: Mapped[str] = mapped_column(
-        String(16),
+        String(24),
         nullable=False,
         default="draft",
     )

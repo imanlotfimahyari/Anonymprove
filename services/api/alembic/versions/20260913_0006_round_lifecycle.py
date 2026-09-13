@@ -33,6 +33,14 @@ def upgrade() -> None:
         type_="check",
     )
 
+    op.alter_column(
+        "feedback_rounds",
+        "status",
+        existing_type=sa.String(length=16),
+        type_=sa.String(length=24),
+        existing_nullable=False,
+    )
+
     op.create_check_constraint(
         "ck_feedback_rounds_status",
         "feedback_rounds",
@@ -43,7 +51,7 @@ def upgrade() -> None:
 def downgrade() -> None:
     rounds = sa.table(
         "feedback_rounds",
-        sa.column("status", sa.String(length=16)),
+        sa.column("status", sa.String(length=24)),
     )
 
     op.drop_constraint(
@@ -58,6 +66,14 @@ def downgrade() -> None:
 
     connection.execute(
         rounds.update().where(rounds.c.status == "closed_no_results").values(status="closed")
+    )
+
+    op.alter_column(
+        "feedback_rounds",
+        "status",
+        existing_type=sa.String(length=24),
+        type_=sa.String(length=16),
+        existing_nullable=False,
     )
 
     op.create_check_constraint(

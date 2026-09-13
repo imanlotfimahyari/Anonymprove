@@ -902,3 +902,10 @@ def test_deadline_auto_closes_when_threshold_is_met(
 
     assert results.status_code == 200
     assert results.json()["responseCount"] == 3
+
+
+def test_feedback_round_status_column_fits_terminal_state() -> None:
+    status_type = FeedbackRound.__table__.c.status.type
+
+    assert status_type.length is not None
+    assert status_type.length >= len("closed_no_results")
