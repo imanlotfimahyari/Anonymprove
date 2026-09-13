@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../api/api_client.dart';
+import '../l10n/builtin_content.dart';
+import '../l10n/generated/app_localizations.dart';
 import '../models/models.dart';
 
 class QuestionnairesPage extends StatefulWidget {
@@ -99,9 +101,10 @@ class _QuestionnairesPageState extends State<QuestionnairesPage> {
   }
 
   void _showError(Object error) {
+    final l10n = AppLocalizations.of(context);
     final message = error is ApiException
         ? error.message
-        : 'Something went wrong.';
+        : l10n.somethingWentWrong;
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
@@ -109,18 +112,20 @@ class _QuestionnairesPageState extends State<QuestionnairesPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Questionnaires'),
+        title: Text(l10n.questionnaires),
         actions: [
           IconButton(
             onPressed: _create,
-            tooltip: 'New questionnaire',
+            tooltip: l10n.newQuestionnaire,
             icon: const Icon(Icons.add),
           ),
           IconButton(
             onPressed: _loading ? null : _reload,
-            tooltip: 'Refresh',
+            tooltip: l10n.refresh,
             icon: const Icon(Icons.refresh),
           ),
         ],
@@ -130,14 +135,10 @@ class _QuestionnairesPageState extends State<QuestionnairesPage> {
           : ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                const Card(
+                Card(
                   child: Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Text(
-                      'Privacy note: do not ask respondents for names, initials, addresses, '
-                      'birthdays, or other identifying information. Anonymous storage cannot '
-                      'prevent a respondent from identifying themselves in an answer.',
-                    ),
+                    padding: const EdgeInsets.all(16),
+                    child: Text(l10n.questionnairePrivacyNote),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -179,7 +180,10 @@ class _QuestionnaireCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final draft = item.status == 'draft';
+    final displayName = localizedQuestionnaireName(l10n, item);
+    final displayDescription = localizedQuestionnaireDescription(l10n, item);
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -190,43 +194,46 @@ class _QuestionnaireCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    item.name,
+                    displayName,
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                 ),
                 Chip(
                   label: Text(
-                    item.isBuiltIn ? 'BUILT-IN' : item.status.toUpperCase(),
+                    item.isBuiltIn
+                        ? l10n.builtIn
+                        : item.status == 'draft'
+                        ? l10n.statusDraft
+                        : item.status == 'published'
+                        ? l10n.statusPublished
+                        : item.status,
                   ),
                 ),
               ],
             ),
-            if (item.description != null) ...[
+            if (displayDescription != null) ...[
               const SizedBox(height: 6),
-              Text(item.description!),
+              Text(displayDescription),
             ],
             const SizedBox(height: 6),
-            Text('Version ${item.version} · ${item.questions.length} blocks'),
+            Text(l10n.versionBlocks(item.version, item.questions.length)),
             const SizedBox(height: 12),
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: [
-                OutlinedButton(onPressed: onView, child: const Text('View')),
+                OutlinedButton(onPressed: onView, child: Text(l10n.view)),
                 if (!item.isBuiltIn && canEdit && draft)
                   OutlinedButton(
                     onPressed: onEdit,
-                    child: const Text('Edit draft'),
+                    child: Text(l10n.editDraft),
                   ),
                 if (!item.isBuiltIn && canEdit && draft)
-                  FilledButton(
-                    onPressed: onPublish,
-                    child: const Text('Publish'),
-                  ),
+                  FilledButton(onPressed: onPublish, child: Text(l10n.publish)),
                 if (!item.isBuiltIn && canEdit && !draft)
                   FilledButton.tonal(
                     onPressed: onNewVersion,
-                    child: const Text('New version'),
+                    child: Text(l10n.newVersion),
                   ),
               ],
             ),
@@ -243,24 +250,35 @@ class QuestionnairePreviewPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final displayName = localizedQuestionnaireName(l10n, item);
+    final displayDescription = localizedQuestionnaireDescription(l10n, item);
+
     return Scaffold(
-      appBar: AppBar(title: Text(item.name)),
+      appBar: AppBar(title: Text(displayName)),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          if (item.description != null)
+          if (displayDescription != null)
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
-                child: Text(item.description!),
+                child: Text(displayDescription),
               ),
             ),
           for (final question in item.questions)
             Card(
               child: ListTile(
                 leading: CircleAvatar(child: Text('${question.position}')),
-                title: Text(question.prompt),
-                subtitle: Text(_kindLabel(question)),
+                title: Text(
+                  localizedBuiltInQuestionPrompt(
+                    l10n,
+                    item.slug,
+                    question.key,
+                    question.prompt,
+                  ),
+                ),
+                subtitle: Text(_kindLabel(context, question)),
               ),
             ),
         ],
@@ -353,7 +371,7 @@ class _QuestionnaireEditorPageState extends State<QuestionnaireEditorPage> {
       if (mounted) {
         final message = error is ApiException
             ? error.message
-            : 'Could not save questionnaire.';
+            : AppLocalizations.of(context).couldNotSaveQuestionnaire;
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text(message)));
@@ -388,10 +406,12 @@ class _QuestionnaireEditorPageState extends State<QuestionnaireEditorPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          widget.questionnaire == null ? 'New questionnaire' : 'Edit draft',
+          widget.questionnaire == null ? l10n.newQuestionnaire : l10n.editDraft,
         ),
       ),
       body: Form(
@@ -399,13 +419,10 @@ class _QuestionnaireEditorPageState extends State<QuestionnaireEditorPage> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            const Card(
+            Card(
               child: Padding(
-                padding: EdgeInsets.all(16),
-                child: Text(
-                  'Avoid questions that request identifying information. Prefer observable '
-                  'behavior and bounded choices over personally identifying free text.',
-                ),
+                padding: const EdgeInsets.all(16),
+                child: Text(l10n.editorPrivacyNote),
               ),
             ),
             const SizedBox(height: 12),
@@ -413,24 +430,23 @@ class _QuestionnaireEditorPageState extends State<QuestionnaireEditorPage> {
               controller: _nameController,
               maxLength: 120,
               autovalidateMode: AutovalidateMode.onUserInteraction,
-              decoration: const InputDecoration(
-                labelText: 'Questionnaire title',
-                helperText: 'Example: Team communication and collaboration',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: l10n.questionnaireTitle,
+                helperText: l10n.questionnaireTitleExample,
+                border: const OutlineInputBorder(),
               ),
               validator: (value) =>
-                  (value ?? '').trim().length < 2 ? 'Enter a title' : null,
+                  (value ?? '').trim().length < 2 ? l10n.enterTitle : null,
             ),
             const SizedBox(height: 12),
             TextFormField(
               controller: _descriptionController,
               maxLines: 3,
               maxLength: 1000,
-              decoration: const InputDecoration(
-                labelText: 'Description / instructions (optional)',
-                helperText:
-                    'Example: Think about how we worked together during the last month.',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: l10n.descriptionInstructionsOptional,
+                helperText: l10n.descriptionExample,
+                border: const OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 16),
@@ -453,7 +469,7 @@ class _QuestionnaireEditorPageState extends State<QuestionnaireEditorPage> {
             OutlinedButton.icon(
               onPressed: _saving ? null : _addQuestion,
               icon: const Icon(Icons.add),
-              label: const Text('Add block'),
+              label: Text(l10n.addBlock),
             ),
             const SizedBox(height: 16),
             FilledButton.icon(
@@ -464,7 +480,7 @@ class _QuestionnaireEditorPageState extends State<QuestionnaireEditorPage> {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Icon(Icons.save_outlined),
-              label: const Text('Save draft'),
+              label: Text(l10n.saveDraft),
             ),
           ],
         ),
@@ -497,6 +513,8 @@ class _QuestionEditorCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+
     final isChoice =
         question.kind == 'single_choice' || question.kind == 'multiple_choice';
     final isScale = question.kind == 'scale';
@@ -511,7 +529,7 @@ class _QuestionEditorCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    'Block ${index + 1}',
+                    l10n.blockNumber(index + 1),
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                 ),
@@ -531,39 +549,46 @@ class _QuestionEditorCard extends StatelessWidget {
             ),
             DropdownButtonFormField<String>(
               initialValue: question.kind,
-              decoration: const InputDecoration(
-                labelText: 'Type',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: l10n.type,
+                border: const OutlineInputBorder(),
               ),
-              items: const [
-                DropdownMenuItem(value: 'scale', child: Text('Rating scale')),
+              items: [
+                DropdownMenuItem(value: 'scale', child: Text(l10n.ratingScale)),
                 DropdownMenuItem(
                   value: 'single_choice',
-                  child: Text('Single choice'),
+                  child: Text(l10n.singleChoice),
                 ),
                 DropdownMenuItem(
                   value: 'multiple_choice',
-                  child: Text('Multiple choice'),
+                  child: Text(l10n.multipleChoice),
                 ),
                 DropdownMenuItem(
                   value: 'short_text',
-                  child: Text('Short text'),
+                  child: Text(l10n.shortText),
                 ),
-                DropdownMenuItem(value: 'long_text', child: Text('Long text')),
+                DropdownMenuItem(
+                  value: 'long_text',
+                  child: Text(l10n.longText),
+                ),
                 DropdownMenuItem(
                   value: 'description',
-                  child: Text('Description / information'),
+                  child: Text(l10n.descriptionInformation),
                 ),
               ],
               onChanged: (value) {
                 if (value == null) return;
-                question.setKind(value);
+                question.setKind(
+                  value,
+                  option1: l10n.optionOne,
+                  option2: l10n.optionTwo,
+                );
                 onChanged();
               },
             ),
             const SizedBox(height: 6),
             Text(
-              _questionKindHelper(question.kind),
+              _questionKindHelper(context, question.kind),
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 12),
@@ -573,22 +598,21 @@ class _QuestionEditorCard extends StatelessWidget {
               maxLength: 500,
               autovalidateMode: AutovalidateMode.onUserInteraction,
               decoration: InputDecoration(
-                labelText: isDescription ? 'Information text' : 'Question',
+                labelText: isDescription ? l10n.informationText : l10n.question,
                 helperText: isDescription
-                    ? 'Example: Read this before answering the next questions.'
-                    : 'Keep it about observable behavior, not personality or identity.',
+                    ? l10n.informationTextExample
+                    : l10n.questionBehaviorHelper,
                 border: const OutlineInputBorder(),
               ),
               onChanged: (value) => question.prompt = value,
-              validator: (value) => (value ?? '').trim().isEmpty
-                  ? 'This block cannot be blank'
-                  : null,
+              validator: (value) =>
+                  (value ?? '').trim().isEmpty ? l10n.blockCannotBeBlank : null,
             ),
             if (!isDescription)
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 value: question.required,
-                title: const Text('Required'),
+                title: Text(l10n.required),
                 onChanged: (value) {
                   question.required = value;
                   onChanged();
@@ -600,7 +624,7 @@ class _QuestionEditorCard extends StatelessWidget {
                   Expanded(
                     child: DropdownButtonFormField<int>(
                       initialValue: question.minScore,
-                      decoration: const InputDecoration(labelText: 'Minimum'),
+                      decoration: InputDecoration(labelText: l10n.minimum),
                       items: [
                         for (var value = 1; value <= 9; value++)
                           DropdownMenuItem(value: value, child: Text('$value')),
@@ -615,7 +639,7 @@ class _QuestionEditorCard extends StatelessWidget {
                   Expanded(
                     child: DropdownButtonFormField<int>(
                       initialValue: question.maxScore,
-                      decoration: const InputDecoration(labelText: 'Maximum'),
+                      decoration: InputDecoration(labelText: l10n.maximum),
                       items: [
                         for (var value = 2; value <= 10; value++)
                           DropdownMenuItem(value: value, child: Text('$value')),
@@ -626,7 +650,7 @@ class _QuestionEditorCard extends StatelessWidget {
                       },
                       validator: (_) =>
                           (question.minScore ?? 1) >= (question.maxScore ?? 5)
-                          ? 'Max must exceed min'
+                          ? l10n.maxMustExceedMin
                           : null,
                     ),
                   ),
@@ -639,10 +663,10 @@ class _QuestionEditorCard extends StatelessWidget {
                 initialValue: question.options.join('\n'),
                 maxLines: 5,
                 autovalidateMode: AutovalidateMode.onUserInteraction,
-                decoration: const InputDecoration(
-                  labelText: 'Options (one per line)',
-                  helperText: 'Example: Rarely\nSometimes\nOften',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: l10n.optionsOnePerLine,
+                  helperText: l10n.optionsExample,
+                  border: const OutlineInputBorder(),
                 ),
                 onChanged: (value) {
                   question.options = value
@@ -652,7 +676,7 @@ class _QuestionEditorCard extends StatelessWidget {
                       .toList();
                 },
                 validator: (_) => question.options.length < 2
-                    ? 'Add at least two options'
+                    ? l10n.addAtLeastTwoOptions
                     : null,
               ),
             ],
@@ -690,7 +714,11 @@ class _EditableQuestion {
         options: question.options.map((option) => option.label).toList(),
       );
 
-  void setKind(String value) {
+  void setKind(
+    String value, {
+    required String option1,
+    required String option2,
+  }) {
     kind = value;
     if (value == 'scale') {
       minScore ??= 1;
@@ -699,7 +727,9 @@ class _EditableQuestion {
     } else if (value == 'single_choice' || value == 'multiple_choice') {
       minScore = null;
       maxScore = null;
-      if (options.length < 2) options = ['Option 1', 'Option 2'];
+      if (options.length < 2) {
+        options = [option1, option2];
+      }
     } else {
       minScore = null;
       maxScore = null;
@@ -720,41 +750,30 @@ class _EditableQuestion {
   );
 }
 
-String _questionKindHelper(String kind) {
-  switch (kind) {
-    case 'scale':
-      return 'Rating scale: useful for measurable patterns, for example communication clarity.';
-    case 'single_choice':
-      return 'Single choice: the respondent selects exactly one option.';
-    case 'multiple_choice':
-      return 'Multiple choice: the respondent may select several options.';
-    case 'short_text':
-      return 'Short text: best for one concise observation or suggestion.';
-    case 'long_text':
-      return 'Long text: use when a more detailed constructive answer is useful.';
-    case 'description':
-      return 'Information only: shown to respondents; no answer is collected.';
-    default:
-      return '';
-  }
+String _questionKindHelper(BuildContext context, String kind) {
+  final l10n = AppLocalizations.of(context);
+
+  return switch (kind) {
+    'scale' => l10n.scaleHelper,
+    'single_choice' => l10n.singleChoiceHelper,
+    'multiple_choice' => l10n.multipleChoiceHelper,
+    'short_text' => l10n.shortTextHelper,
+    'long_text' => l10n.longTextHelper,
+    'description' => l10n.descriptionHelper,
+    _ => '',
+  };
 }
 
-String _kindLabel(QuestionSummary question) {
-  switch (question.kind) {
-    case 'scale':
-      return 'Rating ${question.minScore}-${question.maxScore}';
-    case 'single_choice':
-      return 'Single choice · ${question.options.length} options';
-    case 'multiple_choice':
-      return 'Multiple choice · ${question.options.length} options';
-    case 'short_text':
-      return 'Short text';
-    case 'long_text':
-    case 'text':
-      return 'Long text';
-    case 'description':
-      return 'Information only';
-    default:
-      return question.kind;
-  }
+String _kindLabel(BuildContext context, QuestionSummary question) {
+  final l10n = AppLocalizations.of(context);
+
+  return switch (question.kind) {
+    'scale' => l10n.ratingRange(question.minScore ?? 1, question.maxScore ?? 5),
+    'single_choice' => l10n.singleChoiceOptions(question.options.length),
+    'multiple_choice' => l10n.multipleChoiceOptions(question.options.length),
+    'short_text' => l10n.shortText,
+    'long_text' || 'text' => l10n.longText,
+    'description' => l10n.informationOnly,
+    _ => question.kind,
+  };
 }

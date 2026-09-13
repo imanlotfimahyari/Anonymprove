@@ -1,0 +1,394 @@
+{
+  "@@locale": "en",
+  "appTitle": "Anonymprove",
+  "language": "Language",
+  "languageAutomatic": "Automatic",
+  "languageEnglish": "English",
+  "languageItalian": "Italian",
+  "languagePersian": "Persian",
+  "sessionHeadline": "Constructive feedback, without exposing who said what.",
+  "sessionDescription": "This MVP creates a temporary private session on this device. Account recovery and persistent sign-in come later.",
+  "startPrivateSession": "Start private session",
+  "myGroups": "My groups",
+  "temporarySessionIdentity": "Temporary session identity",
+  "refresh": "Refresh",
+  "noAssessmentsYet": "No assessments yet",
+  "noAssessmentsMessage": "Create a group or join an existing one to get started.",
+  "join": "Join",
+  "create": "Create",
+  "createGroup": "Create group",
+  "groupName": "Group name",
+  "joinGroup": "Join group",
+  "joinCode": "Join code",
+  "saveJoinCode": "Save this join code",
+  "joinCodeShareHint": "Share it only with people you want in this group. The API does not expose the code again later.",
+  "copyCode": "Copy code",
+  "joinCodeCopied": "Join code copied",
+  "iSavedIt": "I saved it",
+  "cancel": "Cancel",
+  "groupHealthHistory": "Group health history",
+  "questionnaires": "Questionnaires",
+  "noFeedbackRounds": "No feedback rounds",
+  "noFeedbackRoundsMessage": "Request feedback about yourself to start a round.",
+  "groupHealthAssessment": "Group health assessment",
+  "yourFeedbackRound": "Your feedback round",
+  "groupMemberFeedback": "Group member feedback",
+  "assessGroupHealth": "Assess group health",
+  "requestFeedback": "Request feedback",
+  "statusDraft": "Draft",
+  "statusOpen": "Open",
+  "statusClosed": "Closed",
+  "statusExpired": "Expired",
+  "statusClosedNoResults": "Closed without results",
+  "roundListSubtitle": "{status} · minimum {minResponses} responses",
+  "groupHealth": "Group health",
+  "feedbackRound": "Feedback round",
+  "questions": "Questions",
+  "oneHour": "1 hour",
+  "sixHours": "6 hours",
+  "twentyFourHoursRecommended": "24 hours · recommended",
+  "threeDays": "3 days",
+  "sevenDays": "7 days",
+  "responseWindowQuestion": "How long should people have to respond?",
+  "extendResponsePeriodBy": "Extend the response period by",
+  "endWithoutResultsTitle": "End without results?",
+  "endWithoutResultsExplanation": "The privacy threshold was not reached. This permanently ends the round without exposing partial results.",
+  "endWithoutResults": "End without results",
+  "closeGroupHealthTitle": "Close group health assessment?",
+  "closeFeedbackRoundTitle": "Close feedback round?",
+  "closeGroupHealthExplanation": "The privacy threshold has been reached. No more group-health responses can be submitted after closing.",
+  "closeFeedbackRoundExplanation": "The privacy threshold has been reached. No more feedback can be submitted after closing.",
+  "closeAssessment": "Close assessment",
+  "closeRound": "Close round",
+  "feedbackSubmittedAnonymously": "Feedback submitted anonymously.",
+  "assessmentNotOpened": "This assessment has not been opened yet.",
+  "openGroupHealthAssessment": "Open group health assessment",
+  "openRound": "Open round",
+  "openingGroupHealthRequirement": "Opening requires at least {minResponses} eligible group members in total.",
+  "openingFeedbackRequirement": "Opening requires at least {minResponses} other eligible group members.",
+  "answerAnonymously": "Answer anonymously",
+  "groupHealthEligibilityPrivacy": "Your identity is used only to establish eligibility and issue one response credential. The submitted answers do not contain your session identity.",
+  "feedbackEligibilityPrivacy": "Your identity is used to check eligibility and issue one response credential. The feedback submission itself does not send your session token.",
+  "closingAfterThreshold": "Closing becomes available after the privacy threshold is met.",
+  "extendResponsePeriod": "Extend response period",
+  "deadlinePassedPartialHidden": "The deadline passed before the privacy threshold was reached. Partial results remain hidden.",
+  "deadlinePassedCreatorAction": "The response deadline passed before enough responses were received. The round creator can extend it or end it without results.",
+  "viewAggregatedResults": "View aggregated results",
+  "closedWithoutResultsMessage": "This round ended without results because the privacy threshold was not reached.",
+  "roundNotAcceptingResponses": "This round is not currently accepting responses.",
+  "roundLifecycle": "Round lifecycle",
+  "responseDeadlineNotSet": "Response deadline: not set yet",
+  "responseDeadline": "Response deadline: {value}",
+  "deadlineReached": "Deadline reached",
+  "timeRemainingDays": "Time remaining: {days}d {hours}h",
+  "timeRemainingHours": "Time remaining: {hours}h {minutes}m",
+  "timeRemainingMinutes": "Time remaining: {minutes}m",
+  "responsesReceived": "Responses received: {count}",
+  "minimumRequired": "Minimum required: {count}",
+  "privacyThresholdReached": "Privacy threshold reached.",
+  "privacyThresholdNotReached": "Privacy threshold not reached yet.",
+  "anonymousCountOnly": "Only the anonymous response count is shown; respondent identities are not exposed.",
+  "@roundListSubtitle": {
+    "placeholders": {
+      "status": {
+        "type": "String"
+      },
+      "minResponses": {
+        "type": "int"
+      }
+    }
+  },
+  "@openingGroupHealthRequirement": {
+    "placeholders": {
+      "minResponses": {
+        "type": "int"
+      }
+    }
+  },
+  "@openingFeedbackRequirement": {
+    "placeholders": {
+      "minResponses": {
+        "type": "int"
+      }
+    }
+  },
+  "@responseDeadline": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "@timeRemainingDays": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      },
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "@timeRemainingHours": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      },
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "@timeRemainingMinutes": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "@responsesReceived": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@minimumRequired": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "anonymousGroupAssessment": "Anonymous group assessment",
+  "anonymousFeedback": "Anonymous feedback",
+  "feedbackPrivacyNote": "Focus on observable behavior. Do not include names or identifying details in free-text answers.",
+  "chooseScore": "Choose a score",
+  "chooseOption": "Choose an option",
+  "chooseAtLeastOneOption": "Choose at least one option",
+  "enterResponse": "Enter a response",
+  "unsupportedQuestionType": "Unsupported question type: {kind}",
+  "submitPrivately": "Submit privately",
+  "yourFeedbackRequest": "Your feedback request",
+  "anonymousFeedbackRequest": "Anonymous feedback request",
+  "statusValue": "Status: {status}",
+  "privacyThresholdResponses": "Privacy threshold: {count} responses",
+  "creatorCanParticipate": "You created this assessment and may also participate anonymously.",
+  "eligibleMembersCanParticipate": "Eligible group members may participate anonymously.",
+  "ratingRange": "Rating {min}-{max}",
+  "singleChoiceOptions": "Single choice · {count} options",
+  "multipleChoiceOptions": "Multiple choice · {count} options",
+  "requiredShortText": "Required short text",
+  "optionalShortText": "Optional short text",
+  "requiredLongText": "Required long text",
+  "optionalLongText": "Optional long text",
+  "informationOnly": "Information only",
+  "@unsupportedQuestionType": {
+    "placeholders": {
+      "kind": {
+        "type": "String"
+      }
+    }
+  },
+  "@statusValue": {
+    "placeholders": {
+      "status": {
+        "type": "String"
+      }
+    }
+  },
+  "@privacyThresholdResponses": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@ratingRange": {
+    "placeholders": {
+      "min": {
+        "type": "int"
+      },
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "@singleChoiceOptions": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@multipleChoiceOptions": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "coreFeedbackName": "Core constructive feedback",
+  "coreFeedbackDescription": "Built-in constructive self-improvement feedback questionnaire.",
+  "coreFeedbackCommunication": "Communicates clearly and honestly.",
+  "coreFeedbackListening": "Listens carefully and makes others feel heard.",
+  "coreFeedbackReliability": "Follows through on commitments and can be relied on.",
+  "coreFeedbackEmpathy": "Shows empathy and considers other people's feelings.",
+  "coreFeedbackBoundaries": "Respects personal boundaries and differences.",
+  "coreFeedbackConflict": "Handles disagreement without humiliation, threats, or unnecessary escalation.",
+  "coreFeedbackSupportiveness": "Is supportive without creating pressure, exclusion, or unhealthy dependence.",
+  "coreFeedbackImprovement": "What is one thing I could do differently to improve our interactions? Avoid names or identifying details.",
+  "coreGroupHealthName": "Core group health",
+  "coreGroupHealthDescription": "Built-in anonymous questionnaire for assessing group dynamics.",
+  "coreGroupHealthCommunication": "People in this group communicate important things clearly and honestly.",
+  "coreGroupHealthListening": "People listen to each other and different views can be expressed.",
+  "coreGroupHealthSafety": "People can disagree without ridicule, threats, or retaliation.",
+  "coreGroupHealthReliability": "People generally follow through on commitments to the group.",
+  "coreGroupHealthSupport": "People help each other when support is reasonably needed.",
+  "coreGroupHealthConflict": "Problems and disagreements are handled constructively.",
+  "coreGroupHealthBoundaries": "Personal boundaries and differences are respected.",
+  "coreGroupHealthImprovement": "What is one thing this group could improve? Avoid names or identifying details.",
+  "aggregatedResults": "Aggregated results",
+  "resultsNotAvailable": "Results are not available",
+  "responseCount": "{count} responses",
+  "aggregatedResultsPrivacy": "Only aggregated results are shown after the privacy threshold.",
+  "noAnswers": "No answers",
+  "averageValue": "Average {value}",
+  "noCommentsSubmitted": "No comments submitted.",
+  "historyUnavailable": "History is unavailable",
+  "noHistoryYet": "No history yet",
+  "noHistoryMessage": "Complete a group health assessment to start building a history.",
+  "groupHealthHistoryExplanation": "Each entry represents aggregated responses from one closed assessment that reached its privacy threshold. Changes may reflect both perceptions and changes in group membership. No overall health score is calculated.",
+  "aggregatedResponseCount": "{count} aggregated responses",
+  "noChange": "No change",
+  "versusPrevious": "{value} vs previous",
+  "playfulReflection": "Playful reflection",
+  "playfulDisclaimer": "A playful summary of aggregated feedback — not a personality assessment.",
+  "thoughtfulOwl": "Thoughtful Owl",
+  "helpingOctopus": "Helping Octopus",
+  "clearSignalFox": "Clear-Signal Fox",
+  "steadyTurtle": "Steady Turtle",
+  "respectfulHedgehog": "Respectful Hedgehog",
+  "calmElephant": "Calm Elephant",
+  "balancedCapybara": "Balanced Capybara",
+  "balancedPlayfulMessage": "The strongest scale signals are close together, so there is no clear standout dimension in this round.",
+  "personalPlayfulMessage": "Your strongest aggregate signal was \"{prompt}\" ({average}/5).",
+  "groupPlayfulMessage": "The group's strongest aggregate signal was \"{prompt}\" ({average}/5).",
+  "@responseCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@aggregatedResponseCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@averageValue": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "@versusPrevious": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "@personalPlayfulMessage": {
+    "placeholders": {
+      "prompt": {
+        "type": "String"
+      },
+      "average": {
+        "type": "String"
+      }
+    }
+  },
+  "@groupPlayfulMessage": {
+    "placeholders": {
+      "prompt": {
+        "type": "String"
+      },
+      "average": {
+        "type": "String"
+      }
+    }
+  },
+  "newQuestionnaire": "New questionnaire",
+  "questionnairePrivacyNote": "Privacy note: do not ask respondents for names, initials, addresses, birthdays, or other identifying information. Anonymous storage cannot prevent a respondent from identifying themselves in an answer.",
+  "somethingWentWrong": "Something went wrong.",
+  "couldNotSaveQuestionnaire": "Could not save questionnaire.",
+  "builtIn": "Built-in",
+  "statusPublished": "Published",
+  "versionBlocks": "Version {version} · {count} blocks",
+  "view": "View",
+  "editDraft": "Edit draft",
+  "publish": "Publish",
+  "newVersion": "New version",
+  "editorPrivacyNote": "Avoid questions that request identifying information. Prefer observable behavior and bounded choices over personally identifying free text.",
+  "questionnaireTitle": "Questionnaire title",
+  "questionnaireTitleExample": "Example: Team communication and collaboration",
+  "enterTitle": "Enter a title",
+  "descriptionInstructionsOptional": "Description / instructions (optional)",
+  "descriptionExample": "Example: Think about how we worked together during the last month.",
+  "addBlock": "Add block",
+  "saveDraft": "Save draft",
+  "blockNumber": "Block {number}",
+  "type": "Type",
+  "ratingScale": "Rating scale",
+  "singleChoice": "Single choice",
+  "multipleChoice": "Multiple choice",
+  "shortText": "Short text",
+  "longText": "Long text",
+  "descriptionInformation": "Description / information",
+  "scaleHelper": "Rating scale: useful for measurable patterns, for example communication clarity.",
+  "singleChoiceHelper": "Single choice: the respondent selects exactly one option.",
+  "multipleChoiceHelper": "Multiple choice: the respondent may select several options.",
+  "shortTextHelper": "Short text: best for one concise observation or suggestion.",
+  "longTextHelper": "Long text: use when a more detailed constructive answer is useful.",
+  "descriptionHelper": "Information only: shown to respondents; no answer is collected.",
+  "informationText": "Information text",
+  "question": "Question",
+  "informationTextExample": "Example: Read this before answering the next questions.",
+  "questionBehaviorHelper": "Keep it about observable behavior, not personality or identity.",
+  "blockCannotBeBlank": "This block cannot be blank",
+  "required": "Required",
+  "minimum": "Minimum",
+  "maximum": "Maximum",
+  "maxMustExceedMin": "Maximum must be greater than minimum",
+  "optionsOnePerLine": "Options (one per line)",
+  "optionsExample": "Example: Rarely\nSometimes\nOften",
+  "addAtLeastTwoOptions": "Add at least two options",
+  "optionOne": "Option 1",
+  "optionTwo": "Option 2",
+  "@versionBlocks": {
+    "placeholders": {
+      "version": {
+        "type": "int"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@blockNumber": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "groupRoleOwner": "Owner",
+  "groupRoleMember": "Member",
+  "chooseQuestionnaire": "Choose questionnaire",
+  "noPublishedQuestionnaires": "No published questionnaires are available.",
+  "somethingWentWrongTryAgain": "Something went wrong. Please try again."
+}

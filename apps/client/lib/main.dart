@@ -3,6 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'l10n/builtin_content.dart';
+import 'l10n/generated/app_localizations.dart';
+import 'l10n/locale_preference.dart';
+
 import 'api/api_client.dart';
 import 'models/models.dart';
 import 'questionnaires/questionnaire_pages.dart';
@@ -18,26 +22,73 @@ void main() {
   runApp(FeedbackApp(api: HttpAnonymproveApi(baseUrl: _defaultApiBaseUrl)));
 }
 
-class FeedbackApp extends StatelessWidget {
+class FeedbackApp extends StatefulWidget {
   const FeedbackApp({required this.api, super.key});
 
   final AnonymproveApi api;
 
   @override
+  State<FeedbackApp> createState() => _FeedbackAppState();
+}
+
+class _FeedbackAppState extends State<FeedbackApp> {
+  Locale? _locale;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLocale();
+  }
+
+  Future<void> _loadLocale() async {
+    final locale = await LocalePreference.load();
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() => _locale = locale);
+  }
+
+  Future<void> _changeLocale(Locale? locale) async {
+    await LocalePreference.save(locale);
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() => _locale = locale);
+  }
+
+  @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Private Feedback',
+      onGenerateTitle: (context) => AppLocalizations.of(context).appTitle,
       debugShowCheckedModeBanner: false,
       theme: ThemeData(useMaterial3: true),
-      home: SessionPage(api: api),
+      locale: _locale,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: SessionPage(
+        api: widget.api,
+        locale: _locale,
+        onLocaleChanged: _changeLocale,
+      ),
     );
   }
 }
 
 class SessionPage extends StatefulWidget {
-  const SessionPage({required this.api, super.key});
+  const SessionPage({
+    required this.api,
+    required this.locale,
+    required this.onLocaleChanged,
+    super.key,
+  });
 
   final AnonymproveApi api;
+  final Locale? locale;
+  final ValueChanged<Locale?> onLocaleChanged;
 
   @override
   State<SessionPage> createState() => _SessionPageState();
@@ -70,11 +121,26 @@ class _SessionPageState extends State<SessionPage> {
   Widget build(BuildContext context) {
     final session = _session;
     if (session != null) {
-      return GroupsPage(api: widget.api, session: session);
+      return GroupsPage(
+        api: widget.api,
+        session: session,
+        locale: widget.locale,
+        onLocaleChanged: widget.onLocaleChanged,
+      );
     }
 
+    final l10n = AppLocalizations.of(context);
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Private Feedback')),
+      appBar: AppBar(
+        title: Text(l10n.appTitle),
+        actions: [
+          _LanguageButton(
+            locale: widget.locale,
+            onChanged: widget.onLocaleChanged,
+          ),
+        ],
+      ),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 520),
@@ -86,16 +152,12 @@ class _SessionPageState extends State<SessionPage> {
                 const Icon(Icons.lock_outline, size: 56),
                 const SizedBox(height: 16),
                 Text(
-                  'Constructive feedback, without exposing who said what.',
+                  l10n.sessionHeadline,
                   style: Theme.of(context).textTheme.titleLarge,
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 12),
-                const Text(
-                  'This MVP creates a temporary private session on this device. '
-                  'Account recovery and persistent sign-in come later.',
-                  textAlign: TextAlign.center,
-                ),
+                Text(l10n.sessionDescription, textAlign: TextAlign.center),
                 const SizedBox(height: 24),
                 FilledButton.icon(
                   onPressed: _starting ? null : _startSession,
@@ -105,7 +167,7 @@ class _SessionPageState extends State<SessionPage> {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(Icons.arrow_forward),
-                  label: const Text('Start private session'),
+                  label: Text(l10n.startPrivateSession),
                 ),
               ],
             ),
@@ -117,10 +179,18 @@ class _SessionPageState extends State<SessionPage> {
 }
 
 class GroupsPage extends StatefulWidget {
-  const GroupsPage({required this.api, required this.session, super.key});
+  const GroupsPage({
+    required this.api,
+    required this.session,
+    required this.locale,
+    required this.onLocaleChanged,
+    super.key,
+  });
 
   final AnonymproveApi api;
   final SessionInfo session;
+  final Locale? locale;
+  final ValueChanged<Locale?> onLocaleChanged;
 
   @override
   State<GroupsPage> createState() => _GroupsPageState();
@@ -155,11 +225,13 @@ class _GroupsPageState extends State<GroupsPage> {
   }
 
   Future<void> _createGroup() async {
+    final l10n = AppLocalizations.of(context);
+
     final name = await _textDialog(
       context,
-      title: 'Create group',
-      label: 'Group name',
-      actionLabel: 'Create',
+      title: l10n.createGroup,
+      label: l10n.groupName,
+      actionLabel: l10n.create,
     );
     if (name == null || !mounted) {
       return;
@@ -185,11 +257,13 @@ class _GroupsPageState extends State<GroupsPage> {
   }
 
   Future<void> _joinGroup() async {
+    final l10n = AppLocalizations.of(context);
+
     final code = await _textDialog(
       context,
-      title: 'Join group',
-      label: 'Join code',
-      actionLabel: 'Join',
+      title: l10n.joinGroup,
+      label: l10n.joinCode,
+      actionLabel: l10n.join,
     );
     if (code == null || !mounted) {
       return;
@@ -212,15 +286,14 @@ class _GroupsPageState extends State<GroupsPage> {
     if (joinCode == null) {
       return;
     }
+    final l10n = AppLocalizations.of(context);
+
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Save this join code'),
-        content: SelectableText(
-          '$joinCode\n\nShare it only with people you want in this group. '
-          'The API does not expose the code again later.',
-        ),
+        title: Text(l10n.saveJoinCode),
+        content: SelectableText('$joinCode\n\n${l10n.joinCodeShareHint}'),
         actions: [
           OutlinedButton.icon(
             onPressed: () async {
@@ -228,14 +301,14 @@ class _GroupsPageState extends State<GroupsPage> {
               if (!mounted) return;
               ScaffoldMessenger.of(
                 context,
-              ).showSnackBar(const SnackBar(content: Text('Join code copied')));
+              ).showSnackBar(SnackBar(content: Text(l10n.joinCodeCopied)));
             },
             icon: const Icon(Icons.copy_outlined),
-            label: const Text('Copy code'),
+            label: Text(l10n.copyCode),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('I saved it'),
+            child: Text(l10n.iSavedIt),
           ),
         ],
       ),
@@ -244,13 +317,19 @@ class _GroupsPageState extends State<GroupsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My groups'),
+        title: Text(l10n.myGroups),
         actions: [
+          _LanguageButton(
+            locale: widget.locale,
+            onChanged: widget.onLocaleChanged,
+          ),
           IconButton(
             onPressed: _loading ? null : _reload,
-            tooltip: 'Refresh',
+            tooltip: l10n.refresh,
             icon: const Icon(Icons.refresh),
           ),
         ],
@@ -262,18 +341,17 @@ class _GroupsPageState extends State<GroupsPage> {
             child: ListTile(
               leading: const Icon(Icons.person_outline),
               title: Text(widget.session.alias),
-              subtitle: const Text('Temporary session identity'),
+              subtitle: Text(l10n.temporarySessionIdentity),
             ),
           ),
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
                 : _groups.isEmpty
-                ? const _EmptyState(
+                ? _EmptyState(
                     icon: Icons.forum_outlined,
-                    title: 'No assessments yet',
-                    message:
-                        'Request personal feedback or start a group health assessment.',
+                    title: l10n.noAssessmentsYet,
+                    message: l10n.noAssessmentsMessage,
                   )
                 : RefreshIndicator(
                     onRefresh: _reload,
@@ -287,7 +365,7 @@ class _GroupsPageState extends State<GroupsPage> {
                           child: ListTile(
                             leading: const Icon(Icons.groups_outlined),
                             title: Text(group.name),
-                            subtitle: Text(group.role),
+                            subtitle: Text(_groupRoleLabel(l10n, group.role)),
                             trailing: const Icon(Icons.chevron_right),
                             onTap: () async {
                               await Navigator.of(context).push<void>(
@@ -318,18 +396,109 @@ class _GroupsPageState extends State<GroupsPage> {
             heroTag: 'join-group',
             onPressed: _joinGroup,
             icon: const Icon(Icons.group_add_outlined),
-            label: const Text('Join'),
+            label: Text(l10n.join),
           ),
           FloatingActionButton.extended(
             heroTag: 'create-group',
             onPressed: _createGroup,
             icon: const Icon(Icons.add),
-            label: const Text('Create'),
+            label: Text(l10n.create),
           ),
         ],
       ),
     );
   }
+}
+
+class _LanguageButton extends StatelessWidget {
+  const _LanguageButton({required this.locale, required this.onChanged});
+
+  static const _automatic = '__automatic__';
+
+  final Locale? locale;
+  final ValueChanged<Locale?> onChanged;
+
+  Future<void> _select(BuildContext context) async {
+    final l10n = AppLocalizations.of(context);
+    final currentValue = locale?.languageCode ?? _automatic;
+
+    final selected = await showDialog<String>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: Text(l10n.language),
+        children: [
+          RadioGroup<String>(
+            groupValue: currentValue,
+            onChanged: (value) {
+              if (value != null) {
+                Navigator.pop(context, value);
+              }
+            },
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                RadioListTile<String>(
+                  value: _automatic,
+                  title: Text(l10n.languageAutomatic),
+                ),
+                RadioListTile<String>(
+                  value: 'en',
+                  title: Text(l10n.languageEnglish),
+                ),
+                RadioListTile<String>(
+                  value: 'it',
+                  title: Text(l10n.languageItalian),
+                ),
+                RadioListTile<String>(
+                  value: 'fa',
+                  title: Text(l10n.languagePersian),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (selected == null) {
+      return;
+    }
+
+    if (selected == _automatic) {
+      onChanged(null);
+      return;
+    }
+
+    onChanged(Locale(selected));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      tooltip: AppLocalizations.of(context).language,
+      onPressed: () => _select(context),
+      icon: const Icon(Icons.language_outlined),
+    );
+  }
+}
+
+String _groupRoleLabel(AppLocalizations l10n, String role) {
+  return switch (role) {
+    'owner' => l10n.groupRoleOwner,
+    'member' => l10n.groupRoleMember,
+    _ => role,
+  };
+}
+
+String _roundStatusLabel(AppLocalizations l10n, String status) {
+  return switch (status) {
+    'draft' => l10n.statusDraft,
+    'open' => l10n.statusOpen,
+    'closed' => l10n.statusClosed,
+    'expired' => l10n.statusExpired,
+    'closed_no_results' => l10n.statusClosedNoResults,
+    _ => status,
+  };
 }
 
 class GroupPage extends StatefulWidget {
@@ -461,12 +630,14 @@ class _GroupPageState extends State<GroupPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.group.name),
         actions: [
           IconButton(
-            tooltip: 'Group health history',
+            tooltip: l10n.groupHealthHistory,
             onPressed: () async {
               await Navigator.of(context).push<void>(
                 MaterialPageRoute(
@@ -485,7 +656,7 @@ class _GroupPageState extends State<GroupPage> {
             icon: const Icon(Icons.timeline_outlined),
           ),
           IconButton(
-            tooltip: 'Questionnaires',
+            tooltip: l10n.questionnaires,
             onPressed: () async {
               await Navigator.of(context).push<void>(
                 MaterialPageRoute(
@@ -501,7 +672,7 @@ class _GroupPageState extends State<GroupPage> {
           ),
           IconButton(
             onPressed: _loading ? null : _reload,
-            tooltip: 'Refresh',
+            tooltip: l10n.refresh,
             icon: const Icon(Icons.refresh),
           ),
         ],
@@ -509,10 +680,10 @@ class _GroupPageState extends State<GroupPage> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _rounds.isEmpty
-          ? const _EmptyState(
+          ? _EmptyState(
               icon: Icons.forum_outlined,
-              title: 'No feedback rounds',
-              message: 'Request feedback about yourself to start a round.',
+              title: l10n.noFeedbackRounds,
+              message: l10n.noFeedbackRoundsMessage,
             )
           : RefreshIndicator(
               onRefresh: _reload,
@@ -536,13 +707,16 @@ class _GroupPageState extends State<GroupPage> {
                       ),
                       title: Text(
                         round.isGroupHealth
-                            ? 'Group health assessment'
+                            ? l10n.groupHealthAssessment
                             : isMine
-                            ? 'Your feedback round'
-                            : 'Group member feedback',
+                            ? l10n.yourFeedbackRound
+                            : l10n.groupMemberFeedback,
                       ),
                       subtitle: Text(
-                        '${round.status.toUpperCase()} · minimum ${round.minResponses} responses',
+                        l10n.roundListSubtitle(
+                          _roundStatusLabel(l10n, round.status),
+                          round.minResponses,
+                        ),
                       ),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () async {
@@ -571,7 +745,7 @@ class _GroupPageState extends State<GroupPage> {
             heroTag: 'group-health',
             onPressed: _creating ? null : _createGroupHealthRound,
             icon: const Icon(Icons.monitor_heart_outlined),
-            label: const Text('Assess group health'),
+            label: Text(l10n.assessGroupHealth),
           ),
           FloatingActionButton.extended(
             heroTag: 'request-feedback',
@@ -582,7 +756,7 @@ class _GroupPageState extends State<GroupPage> {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.add_comment_outlined),
-            label: const Text('Request feedback'),
+            label: Text(l10n.requestFeedback),
           ),
         ],
       ),
@@ -675,6 +849,8 @@ class _RoundPageState extends State<RoundPage> {
   }
 
   Future<int?> _selectResponseWindow({required String title}) {
+    final l10n = AppLocalizations.of(context);
+
     return showDialog<int>(
       context: context,
       builder: (context) => SimpleDialog(
@@ -682,28 +858,28 @@ class _RoundPageState extends State<RoundPage> {
         children: [
           SimpleDialogOption(
             onPressed: () => Navigator.pop(context, 60),
-            child: const Text('1 hour'),
+            child: Text(l10n.oneHour),
           ),
           SimpleDialogOption(
             onPressed: () => Navigator.pop(context, 360),
-            child: const Text('6 hours'),
+            child: Text(l10n.sixHours),
           ),
           SimpleDialogOption(
             onPressed: () => Navigator.pop(context, 1440),
-            child: const Text('24 hours · recommended'),
+            child: Text(l10n.twentyFourHoursRecommended),
           ),
           SimpleDialogOption(
             onPressed: () => Navigator.pop(context, 4320),
-            child: const Text('3 days'),
+            child: Text(l10n.threeDays),
           ),
           SimpleDialogOption(
             onPressed: () => Navigator.pop(context, 10080),
-            child: const Text('7 days'),
+            child: Text(l10n.sevenDays),
           ),
           const Divider(),
           SimpleDialogOption(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(l10n.cancel),
           ),
         ],
       ),
@@ -711,8 +887,10 @@ class _RoundPageState extends State<RoundPage> {
   }
 
   Future<void> _openRound() async {
+    final l10n = AppLocalizations.of(context);
+
     final minutes = await _selectResponseWindow(
-      title: 'How long should people have to respond?',
+      title: l10n.responseWindowQuestion,
     );
 
     if (minutes == null || !mounted) return;
@@ -727,8 +905,10 @@ class _RoundPageState extends State<RoundPage> {
   }
 
   Future<void> _extendRound() async {
+    final l10n = AppLocalizations.of(context);
+
     final minutes = await _selectResponseWindow(
-      title: 'Extend the response period by',
+      title: l10n.extendResponsePeriodBy,
     );
 
     if (minutes == null || !mounted) return;
@@ -743,22 +923,21 @@ class _RoundPageState extends State<RoundPage> {
   }
 
   Future<void> _endWithoutResults() async {
+    final l10n = AppLocalizations.of(context);
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('End without results?'),
-        content: const Text(
-          'The privacy threshold was not reached. This permanently ends the '
-          'round without exposing partial results.',
-        ),
+        title: Text(l10n.endWithoutResultsTitle),
+        content: Text(l10n.endWithoutResultsExplanation),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(l10n.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('End without results'),
+            child: Text(l10n.endWithoutResults),
           ),
         ],
       ),
@@ -775,6 +954,7 @@ class _RoundPageState extends State<RoundPage> {
   }
 
   Future<void> _closeRound() async {
+    final l10n = AppLocalizations.of(context);
     final isGroupHealth = _round?.isGroupHealth == true;
 
     final confirmed = await showDialog<bool>(
@@ -782,24 +962,22 @@ class _RoundPageState extends State<RoundPage> {
       builder: (context) => AlertDialog(
         title: Text(
           isGroupHealth
-              ? 'Close group health assessment?'
-              : 'Close feedback round?',
+              ? l10n.closeGroupHealthTitle
+              : l10n.closeFeedbackRoundTitle,
         ),
         content: Text(
           isGroupHealth
-              ? 'The privacy threshold has been reached. No more group-health '
-                    'responses can be submitted after closing.'
-              : 'The privacy threshold has been reached. No more feedback can '
-                    'be submitted after closing.',
+              ? l10n.closeGroupHealthExplanation
+              : l10n.closeFeedbackRoundExplanation,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(l10n.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text(isGroupHealth ? 'Close assessment' : 'Close round'),
+            child: Text(isGroupHealth ? l10n.closeAssessment : l10n.closeRound),
           ),
         ],
       ),
@@ -850,7 +1028,11 @@ class _RoundPageState extends State<RoundPage> {
 
     if (submitted == true && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Feedback submitted anonymously.')),
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context).feedbackSubmittedAnonymously,
+          ),
+        ),
       );
 
       await _reload(showLoading: false);
@@ -873,15 +1055,16 @@ class _RoundPageState extends State<RoundPage> {
   @override
   Widget build(BuildContext context) {
     final round = _round;
+    final l10n = AppLocalizations.of(context);
 
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          round?.isGroupHealth == true ? 'Group health' : 'Feedback round',
+          round?.isGroupHealth == true ? l10n.groupHealth : l10n.feedbackRound,
         ),
         actions: [
           IconButton(
-            tooltip: 'Refresh',
+            tooltip: l10n.refresh,
             onPressed: _refreshing ? null : () => _reload(showLoading: false),
             icon: const Icon(Icons.refresh),
           ),
@@ -907,7 +1090,7 @@ class _RoundPageState extends State<RoundPage> {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  'Questions',
+                  l10n.questions,
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
                 const SizedBox(height: 8),
@@ -917,8 +1100,15 @@ class _RoundPageState extends State<RoundPage> {
                       leading: CircleAvatar(
                         child: Text('${question.position}'),
                       ),
-                      title: Text(question.prompt),
-                      subtitle: Text(_questionKindLabel(question)),
+                      title: Text(
+                        localizedBuiltInQuestionPrompt(
+                          l10n,
+                          round.questionnaireSlug,
+                          question.key,
+                          question.prompt,
+                        ),
+                      ),
+                      subtitle: Text(_questionKindLabel(context, question)),
                     ),
                   ),
                 const SizedBox(height: 24),
@@ -929,6 +1119,8 @@ class _RoundPageState extends State<RoundPage> {
   }
 
   List<Widget> _actionsFor(FeedbackRoundDetail round) {
+    final l10n = AppLocalizations.of(context);
+
     final isSubject =
         round.isIndividualFeedback &&
         round.subjectUserId == widget.session.userId;
@@ -937,12 +1129,7 @@ class _RoundPageState extends State<RoundPage> {
 
     if (round.status == 'draft') {
       if (!isCreator) {
-        return [
-          const Text(
-            'This assessment has not been opened yet.',
-            textAlign: TextAlign.center,
-          ),
-        ];
+        return [Text(l10n.assessmentNotOpened, textAlign: TextAlign.center)];
       }
 
       return [
@@ -950,16 +1137,16 @@ class _RoundPageState extends State<RoundPage> {
           onPressed: _changing ? null : _openRound,
           icon: const Icon(Icons.play_arrow),
           label: Text(
-            round.isGroupHealth ? 'Open group health assessment' : 'Open round',
+            round.isGroupHealth
+                ? l10n.openGroupHealthAssessment
+                : l10n.openRound,
           ),
         ),
         const SizedBox(height: 8),
         Text(
           round.isGroupHealth
-              ? 'Opening requires at least ${round.minResponses} eligible '
-                    'group members in total.'
-              : 'Opening requires at least ${round.minResponses} other '
-                    'eligible group members.',
+              ? l10n.openingGroupHealthRequirement(round.minResponses)
+              : l10n.openingFeedbackRequirement(round.minResponses),
           textAlign: TextAlign.center,
         ),
       ];
@@ -973,28 +1160,20 @@ class _RoundPageState extends State<RoundPage> {
           FilledButton.icon(
             onPressed: () => _answer(round),
             icon: const Icon(Icons.edit_note),
-            label: const Text('Answer anonymously'),
+            label: Text(l10n.answerAnonymously),
           ),
           const SizedBox(height: 8),
-          const Text(
-            'Your identity is used only to establish eligibility and issue one '
-            'response credential. The submitted answers do not contain your '
-            'session identity.',
-            textAlign: TextAlign.center,
-          ),
+          Text(l10n.groupHealthEligibilityPrivacy, textAlign: TextAlign.center),
           if (isCreator) ...[
             const SizedBox(height: 16),
             FilledButton.tonalIcon(
               onPressed: _changing || !thresholdMet ? null : _closeRound,
               icon: const Icon(Icons.stop_circle_outlined),
-              label: const Text('Close assessment'),
+              label: Text(l10n.closeAssessment),
             ),
             if (!thresholdMet) ...[
               const SizedBox(height: 8),
-              const Text(
-                'Closing becomes available after the privacy threshold is met.',
-                textAlign: TextAlign.center,
-              ),
+              Text(l10n.closingAfterThreshold, textAlign: TextAlign.center),
             ],
           ],
         ];
@@ -1005,14 +1184,11 @@ class _RoundPageState extends State<RoundPage> {
           FilledButton.tonalIcon(
             onPressed: _changing || !thresholdMet ? null : _closeRound,
             icon: const Icon(Icons.stop_circle_outlined),
-            label: const Text('Close round'),
+            label: Text(l10n.closeRound),
           ),
           if (!thresholdMet) ...[
             const SizedBox(height: 8),
-            const Text(
-              'Closing becomes available after the privacy threshold is met.',
-              textAlign: TextAlign.center,
-            ),
+            Text(l10n.closingAfterThreshold, textAlign: TextAlign.center),
           ],
         ];
       }
@@ -1021,15 +1197,10 @@ class _RoundPageState extends State<RoundPage> {
         FilledButton.icon(
           onPressed: () => _answer(round),
           icon: const Icon(Icons.edit_note),
-          label: const Text('Answer anonymously'),
+          label: Text(l10n.answerAnonymously),
         ),
         const SizedBox(height: 8),
-        const Text(
-          'Your identity is used to check eligibility and issue one response '
-          'credential. The feedback submission itself does not send your '
-          'session token.',
-          textAlign: TextAlign.center,
-        ),
+        Text(l10n.feedbackEligibilityPrivacy, textAlign: TextAlign.center),
       ];
     }
 
@@ -1039,29 +1210,21 @@ class _RoundPageState extends State<RoundPage> {
           FilledButton.icon(
             onPressed: _changing ? null : _extendRound,
             icon: const Icon(Icons.update),
-            label: const Text('Extend response period'),
+            label: Text(l10n.extendResponsePeriod),
           ),
           const SizedBox(height: 8),
           OutlinedButton.icon(
             onPressed: _changing ? null : _endWithoutResults,
             icon: const Icon(Icons.block_outlined),
-            label: const Text('End without results'),
+            label: Text(AppLocalizations.of(context).endWithoutResults),
           ),
           const SizedBox(height: 8),
-          const Text(
-            'The deadline passed before the privacy threshold was reached. '
-            'Partial results remain hidden.',
-            textAlign: TextAlign.center,
-          ),
+          Text(l10n.deadlinePassedPartialHidden, textAlign: TextAlign.center),
         ];
       }
 
       return [
-        const Text(
-          'The response deadline passed before enough responses were received. '
-          'The round creator can extend it or end it without results.',
-          textAlign: TextAlign.center,
-        ),
+        Text(l10n.deadlinePassedCreatorAction, textAlign: TextAlign.center),
       ];
     }
 
@@ -1071,7 +1234,7 @@ class _RoundPageState extends State<RoundPage> {
           FilledButton.icon(
             onPressed: () => _viewResults(round),
             icon: const Icon(Icons.bar_chart),
-            label: const Text('View aggregated results'),
+            label: Text(l10n.viewAggregatedResults),
           ),
         ];
       }
@@ -1079,20 +1242,11 @@ class _RoundPageState extends State<RoundPage> {
 
     if (round.status == 'closed_no_results') {
       return [
-        const Text(
-          'This round ended without results because the privacy threshold was '
-          'not reached.',
-          textAlign: TextAlign.center,
-        ),
+        Text(l10n.closedWithoutResultsMessage, textAlign: TextAlign.center),
       ];
     }
 
-    return [
-      const Text(
-        'This round is not currently accepting responses.',
-        textAlign: TextAlign.center,
-      ),
-    ];
+    return [Text(l10n.roundNotAcceptingResponses, textAlign: TextAlign.center)];
   }
 }
 
@@ -1109,6 +1263,7 @@ class _RoundLifecycleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final deadline = round.responseDeadlineAt;
     final progress = this.progress;
 
@@ -1119,31 +1274,31 @@ class _RoundLifecycleCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Round lifecycle',
+              l10n.roundLifecycle,
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 8),
             if (deadline == null)
-              const Text('Response deadline: not set yet')
+              Text(l10n.responseDeadlineNotSet)
             else ...[
-              Text('Response deadline: ${_formatRoundDeadline(deadline)}'),
-              if (round.status == 'open') Text(_remainingTimeLabel(deadline)),
+              Text(
+                l10n.responseDeadline(_formatRoundDeadline(context, deadline)),
+              ),
+              if (round.status == 'open')
+                Text(_remainingTimeLabel(context, deadline)),
             ],
             if (isCreator && progress != null) ...[
               const SizedBox(height: 8),
-              Text('Responses received: ${progress.responseCount}'),
-              Text('Minimum required: ${progress.minResponses}'),
+              Text(l10n.responsesReceived(progress.responseCount)),
+              Text(l10n.minimumRequired(progress.minResponses)),
               const SizedBox(height: 4),
               Text(
                 progress.thresholdMet
-                    ? 'Privacy threshold reached.'
-                    : 'Privacy threshold not reached yet.',
+                    ? l10n.privacyThresholdReached
+                    : l10n.privacyThresholdNotReached,
               ),
               const SizedBox(height: 4),
-              const Text(
-                'Only the anonymous response count is shown; respondent '
-                'identities are not exposed.',
-              ),
+              Text(l10n.anonymousCountOnly),
             ],
           ],
         ),
@@ -1152,35 +1307,42 @@ class _RoundLifecycleCard extends StatelessWidget {
   }
 }
 
-String _formatRoundDeadline(DateTime deadline) {
+String _formatRoundDeadline(BuildContext context, DateTime deadline) {
   final local = deadline.toLocal();
+  final material = MaterialLocalizations.of(context);
 
-  final month = local.month.toString().padLeft(2, '0');
-  final day = local.day.toString().padLeft(2, '0');
-  final hour = local.hour.toString().padLeft(2, '0');
-  final minute = local.minute.toString().padLeft(2, '0');
+  final date = material.formatMediumDate(local);
 
-  return '${local.year}-$month-$day $hour:$minute';
+  final time = material.formatTimeOfDay(
+    TimeOfDay.fromDateTime(local),
+    alwaysUse24HourFormat: MediaQuery.alwaysUse24HourFormatOf(context),
+  );
+
+  return '$date $time';
 }
 
-String _remainingTimeLabel(DateTime deadline) {
+String _remainingTimeLabel(BuildContext context, DateTime deadline) {
+  final l10n = AppLocalizations.of(context);
+
   final remaining = deadline.toUtc().difference(DateTime.now().toUtc());
 
   if (remaining <= Duration.zero) {
-    return 'Deadline reached';
+    return l10n.deadlineReached;
   }
 
   if (remaining.inDays >= 1) {
     final hours = remaining.inHours.remainder(24);
-    return 'Time remaining: ${remaining.inDays}d ${hours}h';
+
+    return l10n.timeRemainingDays(remaining.inDays, hours);
   }
 
   if (remaining.inHours >= 1) {
     final minutes = remaining.inMinutes.remainder(60);
-    return 'Time remaining: ${remaining.inHours}h ${minutes}m';
+
+    return l10n.timeRemainingHours(remaining.inHours, minutes);
   }
 
-  return 'Time remaining: ${remaining.inMinutes.clamp(1, 59)}m';
+  return l10n.timeRemainingMinutes(remaining.inMinutes.clamp(1, 59));
 }
 
 class FeedbackFormPage extends StatefulWidget {
@@ -1298,13 +1460,20 @@ class _FeedbackFormPageState extends State<FeedbackFormPage> {
   }
 
   Widget _field(QuestionSummary question) {
-    final label = '${question.position}. ${question.prompt}';
+    final l10n = AppLocalizations.of(context);
+    final prompt = localizedBuiltInQuestionPrompt(
+      l10n,
+      widget.round.questionnaireSlug,
+      question.key,
+      question.prompt,
+    );
+    final label = '${question.position}. $prompt';
     switch (question.kind) {
       case 'description':
         return Card(
           child: Padding(
             padding: const EdgeInsets.all(16),
-            child: Text(question.prompt),
+            child: Text(prompt),
           ),
         );
       case 'scale':
@@ -1330,7 +1499,7 @@ class _FeedbackFormPageState extends State<FeedbackFormPage> {
                   }
                 },
           validator: (value) =>
-              question.required && value == null ? 'Choose a score' : null,
+              question.required && value == null ? l10n.chooseScore : null,
         );
       case 'single_choice':
         return DropdownButtonFormField<String>(
@@ -1355,14 +1524,14 @@ class _FeedbackFormPageState extends State<FeedbackFormPage> {
                   }
                 },
           validator: (value) =>
-              question.required && value == null ? 'Choose an option' : null,
+              question.required && value == null ? l10n.chooseOption : null,
         );
       case 'multiple_choice':
         return FormField<Set<String>>(
           initialValue: _multipleChoices[question.id] ?? <String>{},
           validator: (value) =>
               question.required && (value == null || value.isEmpty)
-              ? 'Choose at least one option'
+              ? l10n.chooseAtLeastOneOption
               : null,
           builder: (field) {
             final selected = field.value ?? <String>{};
@@ -1414,22 +1583,24 @@ class _FeedbackFormPageState extends State<FeedbackFormPage> {
           ),
           validator: (value) =>
               question.required && (value ?? '').trim().isEmpty
-              ? 'Enter a response'
+              ? l10n.enterResponse
               : null,
         );
       default:
-        return Text('Unsupported question type: ${question.kind}');
+        return Text(l10n.unsupportedQuestionType(question.kind));
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
           widget.round.isGroupHealth
-              ? 'Anonymous group assessment'
-              : 'Anonymous feedback',
+              ? l10n.anonymousGroupAssessment
+              : l10n.anonymousFeedback,
         ),
       ),
       body: Form(
@@ -1437,13 +1608,10 @@ class _FeedbackFormPageState extends State<FeedbackFormPage> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            const Card(
+            Card(
               child: Padding(
-                padding: EdgeInsets.all(16),
-                child: Text(
-                  'Focus on observable behavior. Do not include names or identifying details '
-                  'in free-text answers.',
-                ),
+                padding: const EdgeInsets.all(16),
+                child: Text(l10n.feedbackPrivacyNote),
               ),
             ),
             const SizedBox(height: 8),
@@ -1459,7 +1627,7 @@ class _FeedbackFormPageState extends State<FeedbackFormPage> {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Icon(Icons.send_outlined),
-              label: const Text('Submit privately'),
+              label: Text(l10n.submitPrivately),
             ),
           ],
         ),
@@ -1557,26 +1725,25 @@ class _GroupHealthHistoryPageState extends State<GroupHealthHistoryPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final error = _error;
     final snapshots = _snapshots;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Group health history')),
+      appBar: AppBar(title: Text(l10n.groupHealthHistory)),
       body: error != null
           ? _EmptyState(
               icon: Icons.error_outline,
-              title: 'History is unavailable',
-              message: _messageFor(error),
+              title: l10n.historyUnavailable,
+              message: _messageFor(context, error),
             )
           : snapshots == null
           ? const Center(child: CircularProgressIndicator())
           : snapshots.isEmpty
-          ? const _EmptyState(
+          ? _EmptyState(
               icon: Icons.timeline_outlined,
-              title: 'No history yet',
-              message:
-                  'Complete a group health assessment to start building '
-                  'a history.',
+              title: l10n.noHistoryYet,
+              message: l10n.noHistoryMessage,
             )
           : ListView(
               padding: const EdgeInsets.all(16),
@@ -1585,10 +1752,7 @@ class _GroupHealthHistoryPageState extends State<GroupHealthHistoryPage> {
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: Text(
-                      'Each entry represents aggregated responses from one '
-                      'closed assessment that reached its privacy threshold. '
-                      'Changes may reflect both perceptions and changes in '
-                      'group membership. No overall health score is calculated.',
+                      l10n.groupHealthHistoryExplanation,
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
                   ),
@@ -1623,6 +1787,8 @@ class _GroupHealthSnapshotCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -1630,11 +1796,11 @@ class _GroupHealthSnapshotCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              _formatHistoryDate(_roundDate(snapshot.round)),
+              _formatHistoryDate(context, _roundDate(snapshot.round)),
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 4),
-            Text('${snapshot.results.responseCount} aggregated responses'),
+            Text(l10n.aggregatedResponseCount(snapshot.results.responseCount)),
             const SizedBox(height: 16),
             for (final result in snapshot.results.scaleResults) ...[
               _GroupHealthDimensionRow(
@@ -1661,15 +1827,24 @@ class _GroupHealthDimensionRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final average = result.average;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(result.prompt, style: Theme.of(context).textTheme.titleMedium),
+        Text(
+          localizedBuiltInQuestionPrompt(
+            l10n,
+            coreGroupHealthQuestionnaireSlug,
+            result.key,
+            result.prompt,
+          ),
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
         const SizedBox(height: 4),
         if (average == null)
-          const Text('No answers')
+          Text(l10n.noAnswers)
         else
           Row(
             children: [
@@ -1679,7 +1854,7 @@ class _GroupHealthDimensionRow extends StatelessWidget {
               ),
               if (previousAverage != null) ...[
                 const SizedBox(width: 12),
-                Text(_formatHistoryDelta(average - previousAverage!)),
+                Text(_formatHistoryDelta(context, average - previousAverage!)),
               ],
             ],
           ),
@@ -1706,23 +1881,21 @@ DateTime _roundDate(FeedbackRoundSummary round) {
   return round.closedAt ?? round.createdAt;
 }
 
-String _formatHistoryDate(DateTime date) {
-  final local = date.toLocal();
-
-  final month = local.month.toString().padLeft(2, '0');
-  final day = local.day.toString().padLeft(2, '0');
-
-  return '${local.year}-$month-$day';
+String _formatHistoryDate(BuildContext context, DateTime date) {
+  return MaterialLocalizations.of(context).formatMediumDate(date.toLocal());
 }
 
-String _formatHistoryDelta(double delta) {
+String _formatHistoryDelta(BuildContext context, double delta) {
+  final l10n = AppLocalizations.of(context);
+
   if (delta.abs() < 0.005) {
-    return 'No change';
+    return l10n.noChange;
   }
 
   final prefix = delta > 0 ? '+' : '';
+  final value = '$prefix${delta.toStringAsFixed(2)}';
 
-  return '$prefix${delta.toStringAsFixed(2)} vs previous';
+  return l10n.versusPrevious(value);
 }
 
 class _ResultsPageState extends State<ResultsPage> {
@@ -1749,6 +1922,7 @@ class _ResultsPageState extends State<ResultsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final error = _error;
     final results = _results;
     final playful = results == null
@@ -1759,12 +1933,12 @@ class _ResultsPageState extends State<ResultsPage> {
           );
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Aggregated results')),
+      appBar: AppBar(title: Text(l10n.aggregatedResults)),
       body: error != null
           ? _EmptyState(
               icon: Icons.shield_outlined,
-              title: 'Results are not available',
-              message: _messageFor(error),
+              title: l10n.resultsNotAvailable,
+              message: _messageFor(context, error),
             )
           : results == null
           ? const Center(child: CircularProgressIndicator())
@@ -1774,15 +1948,16 @@ class _ResultsPageState extends State<ResultsPage> {
                 Card(
                   child: ListTile(
                     leading: const Icon(Icons.people_outline),
-                    title: Text('${results.responseCount} responses'),
-                    subtitle: const Text(
-                      'Only aggregated results are shown after the privacy threshold.',
-                    ),
+                    title: Text(l10n.responseCount(results.responseCount)),
+                    subtitle: Text(l10n.aggregatedResultsPrivacy),
                   ),
                 ),
                 const SizedBox(height: 16),
                 if (playful != null) ...[
-                  _PlayfulResultCard(result: playful),
+                  _PlayfulResultCard(
+                    result: playful,
+                    questionnaireSlug: widget.questionnaireSlug,
+                  ),
                   const SizedBox(height: 16),
                 ],
                 for (final result in results.scaleResults)
@@ -1793,14 +1968,21 @@ class _ResultsPageState extends State<ResultsPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            result.prompt,
+                            localizedBuiltInQuestionPrompt(
+                              l10n,
+                              widget.questionnaireSlug,
+                              result.key,
+                              result.prompt,
+                            ),
                             style: Theme.of(context).textTheme.titleMedium,
                           ),
                           const SizedBox(height: 8),
                           Text(
                             result.average == null
-                                ? 'No answers'
-                                : 'Average ${result.average!.toStringAsFixed(2)}',
+                                ? l10n.noAnswers
+                                : l10n.averageValue(
+                                    result.average!.toStringAsFixed(2),
+                                  ),
                             style: Theme.of(context).textTheme.headlineSmall,
                           ),
                           const SizedBox(height: 8),
@@ -1817,7 +1999,12 @@ class _ResultsPageState extends State<ResultsPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            result.prompt,
+                            localizedBuiltInQuestionPrompt(
+                              l10n,
+                              widget.questionnaireSlug,
+                              result.key,
+                              result.prompt,
+                            ),
                             style: Theme.of(context).textTheme.titleMedium,
                           ),
                           const SizedBox(height: 8),
@@ -1830,12 +2017,17 @@ class _ResultsPageState extends State<ResultsPage> {
                 for (final result in results.textResults) ...[
                   const SizedBox(height: 16),
                   Text(
-                    result.prompt,
+                    localizedBuiltInQuestionPrompt(
+                      l10n,
+                      widget.questionnaireSlug,
+                      result.key,
+                      result.prompt,
+                    ),
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                   const SizedBox(height: 8),
                   if (result.comments.isEmpty)
-                    const Text('No comments submitted.')
+                    Text(l10n.noCommentsSubmitted)
                   else
                     for (final comment in result.comments)
                       Card(
@@ -1852,13 +2044,41 @@ class _ResultsPageState extends State<ResultsPage> {
 }
 
 class _PlayfulResultCard extends StatelessWidget {
-  const _PlayfulResultCard({required this.result});
+  const _PlayfulResultCard({
+    required this.result,
+    required this.questionnaireSlug,
+  });
 
   final PlayfulResult result;
+  final String questionnaireSlug;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
+
+    final title = _playfulCharacterTitle(l10n, result.character);
+
+    final prompt = result.spotlightKey == null
+        ? null
+        : localizedBuiltInQuestionPrompt(
+            l10n,
+            questionnaireSlug,
+            result.spotlightKey!,
+            result.spotlightPrompt ?? '',
+          );
+
+    final message = result.character == PlayfulCharacter.balancedCapybara
+        ? l10n.balancedPlayfulMessage
+        : questionnaireSlug == coreGroupHealthQuestionnaireSlug
+        ? l10n.groupPlayfulMessage(
+            prompt ?? '',
+            result.spotlightAverage?.toStringAsFixed(1) ?? '',
+          )
+        : l10n.personalPlayfulMessage(
+            prompt ?? '',
+            result.spotlightAverage?.toStringAsFixed(1) ?? '',
+          );
 
     return Card(
       child: Padding(
@@ -1876,13 +2096,13 @@ class _PlayfulResultCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Playful reflection',
+                        l10n.playfulReflection,
                         style: theme.textTheme.labelLarge,
                       ),
                       const SizedBox(height: 4),
-                      Text(result.title, style: theme.textTheme.headlineSmall),
+                      Text(title, style: theme.textTheme.headlineSmall),
                       const SizedBox(height: 8),
-                      Text(result.message),
+                      Text(message),
                     ],
                   ),
                 ),
@@ -1898,7 +2118,7 @@ class _PlayfulResultCard extends StatelessWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    result.disclaimer,
+                    l10n.playfulDisclaimer,
                     style: theme.textTheme.bodySmall,
                   ),
                 ),
@@ -1909,6 +2129,21 @@ class _PlayfulResultCard extends StatelessWidget {
       ),
     );
   }
+}
+
+String _playfulCharacterTitle(
+  AppLocalizations l10n,
+  PlayfulCharacter character,
+) {
+  return switch (character) {
+    PlayfulCharacter.thoughtfulOwl => l10n.thoughtfulOwl,
+    PlayfulCharacter.helpingOctopus => l10n.helpingOctopus,
+    PlayfulCharacter.clearSignalFox => l10n.clearSignalFox,
+    PlayfulCharacter.steadyTurtle => l10n.steadyTurtle,
+    PlayfulCharacter.respectfulHedgehog => l10n.respectfulHedgehog,
+    PlayfulCharacter.calmElephant => l10n.calmElephant,
+    PlayfulCharacter.balancedCapybara => l10n.balancedCapybara,
+  };
 }
 
 class _RoundStatusCard extends StatelessWidget {
@@ -1924,6 +2159,8 @@ class _RoundStatusCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -1932,20 +2169,20 @@ class _RoundStatusCard extends StatelessWidget {
           children: [
             Text(
               round.isGroupHealth
-                  ? 'Group health assessment'
+                  ? l10n.groupHealthAssessment
                   : isSubject
-                  ? 'Your feedback request'
-                  : 'Anonymous feedback request',
+                  ? l10n.yourFeedbackRequest
+                  : l10n.anonymousFeedbackRequest,
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 8),
-            Text('Status: ${round.status.toUpperCase()}'),
-            Text('Privacy threshold: ${round.minResponses} responses'),
+            Text(l10n.statusValue(_roundStatusLabel(l10n, round.status))),
+            Text(l10n.privacyThresholdResponses(round.minResponses)),
             if (round.isGroupHealth)
               Text(
                 isCreator
-                    ? 'You created this assessment and may also participate anonymously.'
-                    : 'Eligible group members may participate anonymously.',
+                    ? l10n.creatorCanParticipate
+                    : l10n.eligibleMembersCanParticipate,
               ),
           ],
         ),
@@ -1989,18 +2226,18 @@ Future<QuestionnaireSummary?> _selectQuestionnaireDialog(
   BuildContext context,
   List<QuestionnaireSummary> questionnaires,
 ) async {
+  final l10n = AppLocalizations.of(context);
+
   if (questionnaires.isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('No published questionnaires are available.'),
-      ),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(l10n.noPublishedQuestionnaires)));
     return null;
   }
   return showDialog<QuestionnaireSummary>(
     context: context,
     builder: (context) => AlertDialog(
-      title: const Text('Choose questionnaire'),
+      title: Text(l10n.chooseQuestionnaire),
       content: SizedBox(
         width: 520,
         child: ListView(
@@ -2011,9 +2248,9 @@ Future<QuestionnaireSummary?> _selectQuestionnaireDialog(
                 leading: Icon(
                   item.isBuiltIn ? Icons.lock_outline : Icons.quiz_outlined,
                 ),
-                title: Text(item.name),
+                title: Text(localizedQuestionnaireName(l10n, item)),
                 subtitle: Text(
-                  'Version ${item.version} · ${item.questions.length} blocks',
+                  l10n.versionBlocks(item.version, item.questions.length),
                 ),
                 onTap: () => Navigator.pop(context, item),
               ),
@@ -2023,28 +2260,38 @@ Future<QuestionnaireSummary?> _selectQuestionnaireDialog(
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
+          child: Text(AppLocalizations.of(context).cancel),
         ),
       ],
     ),
   );
 }
 
-String _questionKindLabel(QuestionSummary question) {
+String _questionKindLabel(BuildContext context, QuestionSummary question) {
+  final l10n = AppLocalizations.of(context);
+
   switch (question.kind) {
     case 'scale':
-      return 'Rating ${question.minScore}-${question.maxScore}';
+      return l10n.ratingRange(question.minScore ?? 1, question.maxScore ?? 5);
+
     case 'single_choice':
-      return 'Single choice · ${question.options.length} options';
+      return l10n.singleChoiceOptions(question.options.length);
+
     case 'multiple_choice':
-      return 'Multiple choice · ${question.options.length} options';
+      return l10n.multipleChoiceOptions(question.options.length);
+
     case 'short_text':
-      return question.required ? 'Required short text' : 'Optional short text';
+      return question.required
+          ? l10n.requiredShortText
+          : l10n.optionalShortText;
+
     case 'long_text':
     case 'text':
-      return question.required ? 'Required long text' : 'Optional long text';
+      return question.required ? l10n.requiredLongText : l10n.optionalLongText;
+
     case 'description':
-      return 'Information only';
+      return l10n.informationOnly;
+
     default:
       return question.kind;
   }
@@ -2076,7 +2323,7 @@ Future<String?> _textDialog(
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
+          child: Text(AppLocalizations.of(context).cancel),
         ),
         FilledButton(
           onPressed: () {
@@ -2095,14 +2342,15 @@ Future<String?> _textDialog(
 void _showError(BuildContext context, Object error) {
   ScaffoldMessenger.of(
     context,
-  ).showSnackBar(SnackBar(content: Text(_messageFor(error))));
+  ).showSnackBar(SnackBar(content: Text(_messageFor(context, error))));
 }
 
-String _messageFor(Object error) {
+String _messageFor(BuildContext context, Object error) {
   if (error is ApiException) {
     return error.message;
   }
-  return 'Something went wrong. Please try again.';
+
+  return AppLocalizations.of(context).somethingWentWrongTryAgain;
 }
 
 String _distributionText(Map<String, int> distribution) {
