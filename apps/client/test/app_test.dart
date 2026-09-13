@@ -13,7 +13,7 @@ void main() {
       FeedbackApp(api: HttpAnonymproveApi(baseUrl: 'http://example.invalid')),
     );
 
-    expect(find.text('Private Feedback'), findsOneWidget);
+    expect(find.text('Anonymprove'), findsOneWidget);
     expect(
       find.text('Constructive feedback, without exposing who said what.'),
       findsOneWidget,

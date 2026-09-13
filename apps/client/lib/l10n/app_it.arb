@@ -1,0 +1,394 @@
+{
+  "@@locale": "it",
+  "appTitle": "Anonymprove",
+  "language": "Lingua",
+  "languageAutomatic": "Automatica",
+  "languageEnglish": "Inglese",
+  "languageItalian": "Italiano",
+  "languagePersian": "Persiano",
+  "sessionHeadline": "Feedback costruttivo, senza rivelare chi ha detto cosa.",
+  "sessionDescription": "Questa versione beta crea una sessione privata temporanea su questo dispositivo. Il recupero dell'account e l'accesso persistente arriveranno in seguito.",
+  "startPrivateSession": "Avvia sessione privata",
+  "myGroups": "I miei gruppi",
+  "temporarySessionIdentity": "Identità temporanea della sessione",
+  "refresh": "Aggiorna",
+  "noAssessmentsYet": "Nessun gruppo ancora",
+  "noAssessmentsMessage": "Crea un gruppo o unisciti a uno esistente per iniziare.",
+  "join": "Unisciti",
+  "create": "Crea",
+  "createGroup": "Crea gruppo",
+  "groupName": "Nome del gruppo",
+  "joinGroup": "Unisciti al gruppo",
+  "joinCode": "Codice di accesso",
+  "saveJoinCode": "Salva questo codice di accesso",
+  "joinCodeShareHint": "Condividilo solo con le persone che vuoi nel gruppo. L'API non mostrerà nuovamente il codice in seguito.",
+  "copyCode": "Copia codice",
+  "joinCodeCopied": "Codice copiato",
+  "iSavedIt": "L'ho salvato",
+  "cancel": "Annulla",
+  "groupHealthHistory": "Cronologia salute del gruppo",
+  "questionnaires": "Questionari",
+  "noFeedbackRounds": "Nessun ciclo di feedback",
+  "noFeedbackRoundsMessage": "Richiedi un feedback su di te per iniziare.",
+  "groupHealthAssessment": "Valutazione della salute del gruppo",
+  "yourFeedbackRound": "Il tuo ciclo di feedback",
+  "groupMemberFeedback": "Feedback su un membro del gruppo",
+  "assessGroupHealth": "Valuta la salute del gruppo",
+  "requestFeedback": "Richiedi feedback",
+  "statusDraft": "Bozza",
+  "statusOpen": "Aperto",
+  "statusClosed": "Chiuso",
+  "statusExpired": "Scaduto",
+  "statusClosedNoResults": "Chiuso senza risultati",
+  "roundListSubtitle": "{status} · minimo {minResponses} risposte",
+  "groupHealth": "Salute del gruppo",
+  "feedbackRound": "Ciclo di feedback",
+  "questions": "Domande",
+  "oneHour": "1 ora",
+  "sixHours": "6 ore",
+  "twentyFourHoursRecommended": "24 ore · consigliato",
+  "threeDays": "3 giorni",
+  "sevenDays": "7 giorni",
+  "responseWindowQuestion": "Quanto tempo devono avere le persone per rispondere?",
+  "extendResponsePeriodBy": "Estendi il periodo di risposta di",
+  "endWithoutResultsTitle": "Terminare senza risultati?",
+  "endWithoutResultsExplanation": "La soglia di privacy non è stata raggiunta. Questa operazione termina definitivamente il ciclo senza mostrare risultati parziali.",
+  "endWithoutResults": "Termina senza risultati",
+  "closeGroupHealthTitle": "Chiudere la valutazione del gruppo?",
+  "closeFeedbackRoundTitle": "Chiudere il ciclo di feedback?",
+  "closeGroupHealthExplanation": "La soglia di privacy è stata raggiunta. Dopo la chiusura non sarà più possibile inviare risposte sulla salute del gruppo.",
+  "closeFeedbackRoundExplanation": "La soglia di privacy è stata raggiunta. Dopo la chiusura non sarà più possibile inviare feedback.",
+  "closeAssessment": "Chiudi valutazione",
+  "closeRound": "Chiudi ciclo",
+  "feedbackSubmittedAnonymously": "Feedback inviato in forma anonima.",
+  "assessmentNotOpened": "Questa valutazione non è ancora stata aperta.",
+  "openGroupHealthAssessment": "Apri valutazione del gruppo",
+  "openRound": "Apri ciclo",
+  "openingGroupHealthRequirement": "Per aprire servono almeno {minResponses} membri del gruppo idonei in totale.",
+  "openingFeedbackRequirement": "Per aprire servono almeno {minResponses} altri membri del gruppo idonei.",
+  "answerAnonymously": "Rispondi in forma anonima",
+  "groupHealthEligibilityPrivacy": "La tua identità viene usata solo per verificare l'idoneità e rilasciare una credenziale di risposta. Le risposte inviate non contengono la tua identità di sessione.",
+  "feedbackEligibilityPrivacy": "La tua identità viene usata per verificare l'idoneità e rilasciare una credenziale di risposta. L'invio del feedback non trasmette il token della tua sessione.",
+  "closingAfterThreshold": "La chiusura diventa disponibile quando viene raggiunta la soglia di privacy.",
+  "extendResponsePeriod": "Estendi periodo di risposta",
+  "deadlinePassedPartialHidden": "La scadenza è passata prima del raggiungimento della soglia di privacy. I risultati parziali restano nascosti.",
+  "deadlinePassedCreatorAction": "La scadenza è passata prima di ricevere abbastanza risposte. Il creatore può estendere il periodo o terminare senza risultati.",
+  "viewAggregatedResults": "Visualizza risultati aggregati",
+  "closedWithoutResultsMessage": "Questo ciclo è terminato senza risultati perché la soglia di privacy non è stata raggiunta.",
+  "roundNotAcceptingResponses": "Questo ciclo al momento non accetta risposte.",
+  "roundLifecycle": "Ciclo della valutazione",
+  "responseDeadlineNotSet": "Scadenza delle risposte: non ancora impostata",
+  "responseDeadline": "Scadenza delle risposte: {value}",
+  "deadlineReached": "Scadenza raggiunta",
+  "timeRemainingDays": "Tempo rimanente: {days}g {hours}h",
+  "timeRemainingHours": "Tempo rimanente: {hours}h {minutes}m",
+  "timeRemainingMinutes": "Tempo rimanente: {minutes}m",
+  "responsesReceived": "Risposte ricevute: {count}",
+  "minimumRequired": "Minimo richiesto: {count}",
+  "privacyThresholdReached": "Soglia di privacy raggiunta.",
+  "privacyThresholdNotReached": "Soglia di privacy non ancora raggiunta.",
+  "anonymousCountOnly": "Viene mostrato solo il numero di risposte anonime; le identità dei partecipanti non vengono esposte.",
+  "@roundListSubtitle": {
+    "placeholders": {
+      "status": {
+        "type": "String"
+      },
+      "minResponses": {
+        "type": "int"
+      }
+    }
+  },
+  "@openingGroupHealthRequirement": {
+    "placeholders": {
+      "minResponses": {
+        "type": "int"
+      }
+    }
+  },
+  "@openingFeedbackRequirement": {
+    "placeholders": {
+      "minResponses": {
+        "type": "int"
+      }
+    }
+  },
+  "@responseDeadline": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "@timeRemainingDays": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      },
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "@timeRemainingHours": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      },
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "@timeRemainingMinutes": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "@responsesReceived": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@minimumRequired": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "anonymousGroupAssessment": "Valutazione anonima del gruppo",
+  "anonymousFeedback": "Feedback anonimo",
+  "feedbackPrivacyNote": "Concentrati sui comportamenti osservabili. Non includere nomi o dettagli identificativi nelle risposte testuali.",
+  "chooseScore": "Scegli un punteggio",
+  "chooseOption": "Scegli un'opzione",
+  "chooseAtLeastOneOption": "Scegli almeno un'opzione",
+  "enterResponse": "Inserisci una risposta",
+  "unsupportedQuestionType": "Tipo di domanda non supportato: {kind}",
+  "submitPrivately": "Invia privatamente",
+  "yourFeedbackRequest": "La tua richiesta di feedback",
+  "anonymousFeedbackRequest": "Richiesta di feedback anonima",
+  "statusValue": "Stato: {status}",
+  "privacyThresholdResponses": "Soglia di privacy: {count} risposte",
+  "creatorCanParticipate": "Hai creato questa valutazione e puoi anche partecipare in forma anonima.",
+  "eligibleMembersCanParticipate": "I membri idonei del gruppo possono partecipare in forma anonima.",
+  "ratingRange": "Valutazione {min}-{max}",
+  "singleChoiceOptions": "Scelta singola · {count} opzioni",
+  "multipleChoiceOptions": "Scelta multipla · {count} opzioni",
+  "requiredShortText": "Testo breve obbligatorio",
+  "optionalShortText": "Testo breve facoltativo",
+  "requiredLongText": "Testo lungo obbligatorio",
+  "optionalLongText": "Testo lungo facoltativo",
+  "informationOnly": "Solo informativo",
+  "@unsupportedQuestionType": {
+    "placeholders": {
+      "kind": {
+        "type": "String"
+      }
+    }
+  },
+  "@statusValue": {
+    "placeholders": {
+      "status": {
+        "type": "String"
+      }
+    }
+  },
+  "@privacyThresholdResponses": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@ratingRange": {
+    "placeholders": {
+      "min": {
+        "type": "int"
+      },
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "@singleChoiceOptions": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@multipleChoiceOptions": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "coreFeedbackName": "Feedback costruttivo di base",
+  "coreFeedbackDescription": "Questionario integrato per il feedback costruttivo e il miglioramento personale.",
+  "coreFeedbackCommunication": "Comunica in modo chiaro e sincero.",
+  "coreFeedbackListening": "Ascolta con attenzione e fa sentire gli altri ascoltati.",
+  "coreFeedbackReliability": "Mantiene gli impegni ed è una persona su cui si può contare.",
+  "coreFeedbackEmpathy": "Mostra empatia e tiene conto dei sentimenti degli altri.",
+  "coreFeedbackBoundaries": "Rispetta i confini personali e le differenze.",
+  "coreFeedbackConflict": "Gestisce i disaccordi senza umiliazioni, minacce o escalation inutili.",
+  "coreFeedbackSupportiveness": "Offre sostegno senza creare pressione, esclusione o dipendenza malsana.",
+  "coreFeedbackImprovement": "Qual è una cosa che potrei fare diversamente per migliorare le nostre interazioni? Evita nomi o dettagli identificativi.",
+  "coreGroupHealthName": "Salute del gruppo",
+  "coreGroupHealthDescription": "Questionario anonimo integrato per valutare le dinamiche del gruppo.",
+  "coreGroupHealthCommunication": "Le persone del gruppo comunicano le cose importanti in modo chiaro e sincero.",
+  "coreGroupHealthListening": "Le persone si ascoltano e possono esprimere punti di vista diversi.",
+  "coreGroupHealthSafety": "Le persone possono essere in disaccordo senza derisione, minacce o ritorsioni.",
+  "coreGroupHealthReliability": "Le persone generalmente rispettano gli impegni presi con il gruppo.",
+  "coreGroupHealthSupport": "Le persone si aiutano quando è ragionevolmente necessario.",
+  "coreGroupHealthConflict": "I problemi e i disaccordi vengono gestiti in modo costruttivo.",
+  "coreGroupHealthBoundaries": "I confini personali e le differenze vengono rispettati.",
+  "coreGroupHealthImprovement": "Qual è una cosa che questo gruppo potrebbe migliorare? Evita nomi o dettagli identificativi.",
+  "aggregatedResults": "Risultati aggregati",
+  "resultsNotAvailable": "I risultati non sono disponibili",
+  "responseCount": "{count} risposte",
+  "aggregatedResultsPrivacy": "I risultati vengono mostrati solo in forma aggregata dopo il raggiungimento della soglia di privacy.",
+  "noAnswers": "Nessuna risposta",
+  "averageValue": "Media {value}",
+  "noCommentsSubmitted": "Nessun commento inviato.",
+  "historyUnavailable": "La cronologia non è disponibile",
+  "noHistoryYet": "Nessuna cronologia ancora",
+  "noHistoryMessage": "Completa una valutazione della salute del gruppo per iniziare a costruire una cronologia.",
+  "groupHealthHistoryExplanation": "Ogni voce rappresenta le risposte aggregate di una valutazione chiusa che ha raggiunto la soglia di privacy. Le variazioni possono riflettere sia le percezioni sia i cambiamenti nella composizione del gruppo. Non viene calcolato alcun punteggio complessivo di salute.",
+  "aggregatedResponseCount": "{count} risposte aggregate",
+  "noChange": "Nessuna variazione",
+  "versusPrevious": "{value} rispetto alla precedente",
+  "playfulReflection": "Riflessione giocosa",
+  "playfulDisclaimer": "Un riepilogo giocoso del feedback aggregato — non una valutazione della personalità.",
+  "thoughtfulOwl": "Gufo riflessivo",
+  "helpingOctopus": "Polpo disponibile",
+  "clearSignalFox": "Volpe dalla comunicazione chiara",
+  "steadyTurtle": "Tartaruga affidabile",
+  "respectfulHedgehog": "Riccio rispettoso",
+  "calmElephant": "Elefante calmo",
+  "balancedCapybara": "Capibara equilibrato",
+  "balancedPlayfulMessage": "I segnali più forti sono molto vicini tra loro, quindi in questo ciclo non emerge una dimensione chiaramente dominante.",
+  "personalPlayfulMessage": "Il tuo segnale aggregato più forte è stato \"{prompt}\" ({average}/5).",
+  "groupPlayfulMessage": "Il segnale aggregato più forte del gruppo è stato \"{prompt}\" ({average}/5).",
+  "@responseCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@aggregatedResponseCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@averageValue": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "@versusPrevious": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "@personalPlayfulMessage": {
+    "placeholders": {
+      "prompt": {
+        "type": "String"
+      },
+      "average": {
+        "type": "String"
+      }
+    }
+  },
+  "@groupPlayfulMessage": {
+    "placeholders": {
+      "prompt": {
+        "type": "String"
+      },
+      "average": {
+        "type": "String"
+      }
+    }
+  },
+  "newQuestionnaire": "Nuovo questionario",
+  "questionnairePrivacyNote": "Nota sulla privacy: non chiedere nomi, iniziali, indirizzi, date di nascita o altre informazioni identificative. L'archiviazione anonima non può impedire a una persona di identificarsi volontariamente in una risposta.",
+  "somethingWentWrong": "Si è verificato un problema.",
+  "couldNotSaveQuestionnaire": "Impossibile salvare il questionario.",
+  "builtIn": "Integrato",
+  "statusPublished": "Pubblicato",
+  "versionBlocks": "Versione {version} · {count} blocchi",
+  "view": "Visualizza",
+  "editDraft": "Modifica bozza",
+  "publish": "Pubblica",
+  "newVersion": "Nuova versione",
+  "editorPrivacyNote": "Evita domande che richiedono informazioni identificative. Preferisci comportamenti osservabili e scelte limitate rispetto a testo libero che possa identificare una persona.",
+  "questionnaireTitle": "Titolo del questionario",
+  "questionnaireTitleExample": "Esempio: Comunicazione e collaborazione del team",
+  "enterTitle": "Inserisci un titolo",
+  "descriptionInstructionsOptional": "Descrizione / istruzioni (facoltative)",
+  "descriptionExample": "Esempio: Pensa a come abbiamo lavorato insieme nell'ultimo mese.",
+  "addBlock": "Aggiungi blocco",
+  "saveDraft": "Salva bozza",
+  "blockNumber": "Blocco {number}",
+  "type": "Tipo",
+  "ratingScale": "Scala di valutazione",
+  "singleChoice": "Scelta singola",
+  "multipleChoice": "Scelta multipla",
+  "shortText": "Testo breve",
+  "longText": "Testo lungo",
+  "descriptionInformation": "Descrizione / informazione",
+  "scaleHelper": "Scala di valutazione: utile per aspetti misurabili, ad esempio la chiarezza della comunicazione.",
+  "singleChoiceHelper": "Scelta singola: la persona seleziona esattamente un'opzione.",
+  "multipleChoiceHelper": "Scelta multipla: la persona può selezionare più opzioni.",
+  "shortTextHelper": "Testo breve: ideale per un'osservazione o un suggerimento conciso.",
+  "longTextHelper": "Testo lungo: usalo quando è utile una risposta costruttiva più dettagliata.",
+  "descriptionHelper": "Solo informativo: viene mostrato ai partecipanti e non raccoglie una risposta.",
+  "informationText": "Testo informativo",
+  "question": "Domanda",
+  "informationTextExample": "Esempio: Leggi questo testo prima di rispondere alle domande successive.",
+  "questionBehaviorHelper": "Mantieni la domanda sui comportamenti osservabili, non sulla personalità o sull'identità.",
+  "blockCannotBeBlank": "Questo blocco non può essere vuoto",
+  "required": "Obbligatorio",
+  "minimum": "Minimo",
+  "maximum": "Massimo",
+  "maxMustExceedMin": "Il massimo deve essere maggiore del minimo",
+  "optionsOnePerLine": "Opzioni (una per riga)",
+  "optionsExample": "Esempio: Raramente\nA volte\nSpesso",
+  "addAtLeastTwoOptions": "Aggiungi almeno due opzioni",
+  "optionOne": "Opzione 1",
+  "optionTwo": "Opzione 2",
+  "@versionBlocks": {
+    "placeholders": {
+      "version": {
+        "type": "int"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@blockNumber": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "groupRoleOwner": "Proprietario",
+  "groupRoleMember": "Membro",
+  "chooseQuestionnaire": "Scegli questionario",
+  "noPublishedQuestionnaires": "Non sono disponibili questionari pubblicati.",
+  "somethingWentWrongTryAgain": "Si è verificato un problema. Riprova."
+}

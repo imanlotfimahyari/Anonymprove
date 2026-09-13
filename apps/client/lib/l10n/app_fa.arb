@@ -1,0 +1,394 @@
+{
+  "@@locale": "fa",
+  "appTitle": "Anonymprove",
+  "language": "زبان",
+  "languageAutomatic": "خودکار",
+  "languageEnglish": "انگلیسی",
+  "languageItalian": "ایتالیایی",
+  "languagePersian": "فارسی",
+  "sessionHeadline": "بازخورد سازنده، بدون مشخص شدن اینکه چه کسی چه گفته است.",
+  "sessionDescription": "این نسخهٔ آزمایشی یک نشست خصوصی موقت روی این دستگاه ایجاد می‌کند. بازیابی حساب و ورود پایدار بعداً اضافه خواهد شد.",
+  "startPrivateSession": "شروع نشست خصوصی",
+  "myGroups": "گروه‌های من",
+  "temporarySessionIdentity": "هویت موقت نشست",
+  "refresh": "به‌روزرسانی",
+  "noAssessmentsYet": "هنوز گروهی وجود ندارد",
+  "noAssessmentsMessage": "برای شروع، یک گروه بسازید یا به یک گروه موجود بپیوندید.",
+  "join": "پیوستن",
+  "create": "ایجاد",
+  "createGroup": "ایجاد گروه",
+  "groupName": "نام گروه",
+  "joinGroup": "پیوستن به گروه",
+  "joinCode": "کد پیوستن",
+  "saveJoinCode": "این کد پیوستن را ذخیره کنید",
+  "joinCodeShareHint": "این کد را فقط با افرادی به اشتراک بگذارید که می‌خواهید عضو گروه باشند. API بعداً این کد را دوباره نمایش نمی‌دهد.",
+  "copyCode": "کپی کد",
+  "joinCodeCopied": "کد پیوستن کپی شد",
+  "iSavedIt": "ذخیره کردم",
+  "cancel": "لغو",
+  "groupHealthHistory": "تاریخچه سلامت گروه",
+  "questionnaires": "پرسش‌نامه‌ها",
+  "noFeedbackRounds": "هنوز دور بازخوردی وجود ندارد",
+  "noFeedbackRoundsMessage": "برای شروع، درباره خودتان درخواست بازخورد ایجاد کنید.",
+  "groupHealthAssessment": "ارزیابی سلامت گروه",
+  "yourFeedbackRound": "دور بازخورد شما",
+  "groupMemberFeedback": "بازخورد درباره عضو گروه",
+  "assessGroupHealth": "ارزیابی سلامت گروه",
+  "requestFeedback": "درخواست بازخورد",
+  "statusDraft": "پیش‌نویس",
+  "statusOpen": "باز",
+  "statusClosed": "بسته",
+  "statusExpired": "منقضی‌شده",
+  "statusClosedNoResults": "بسته‌شده بدون نتیجه",
+  "roundListSubtitle": "{status} · حداقل {minResponses} پاسخ",
+  "groupHealth": "سلامت گروه",
+  "feedbackRound": "دور بازخورد",
+  "questions": "پرسش‌ها",
+  "oneHour": "۱ ساعت",
+  "sixHours": "۶ ساعت",
+  "twentyFourHoursRecommended": "۲۴ ساعت · پیشنهادشده",
+  "threeDays": "۳ روز",
+  "sevenDays": "۷ روز",
+  "responseWindowQuestion": "افراد چه مدت برای پاسخ‌دادن فرصت داشته باشند؟",
+  "extendResponsePeriodBy": "تمدید زمان پاسخ‌گویی به مدت",
+  "endWithoutResultsTitle": "بدون نتیجه پایان یابد؟",
+  "endWithoutResultsExplanation": "حد نصاب حریم خصوصی به دست نیامده است. با این کار دور برای همیشه پایان می‌یابد و نتایج ناقص نمایش داده نمی‌شوند.",
+  "endWithoutResults": "پایان بدون نتیجه",
+  "closeGroupHealthTitle": "ارزیابی سلامت گروه بسته شود؟",
+  "closeFeedbackRoundTitle": "دور بازخورد بسته شود؟",
+  "closeGroupHealthExplanation": "حد نصاب حریم خصوصی به دست آمده است. پس از بستن، دیگر پاسخی برای ارزیابی سلامت گروه پذیرفته نمی‌شود.",
+  "closeFeedbackRoundExplanation": "حد نصاب حریم خصوصی به دست آمده است. پس از بستن، دیگر بازخوردی پذیرفته نمی‌شود.",
+  "closeAssessment": "بستن ارزیابی",
+  "closeRound": "بستن دور",
+  "feedbackSubmittedAnonymously": "بازخورد به‌صورت ناشناس ارسال شد.",
+  "assessmentNotOpened": "این ارزیابی هنوز باز نشده است.",
+  "openGroupHealthAssessment": "باز کردن ارزیابی سلامت گروه",
+  "openRound": "باز کردن دور",
+  "openingGroupHealthRequirement": "برای باز کردن، در مجموع حداقل {minResponses} عضو واجد شرایط گروه لازم است.",
+  "openingFeedbackRequirement": "برای باز کردن، حداقل {minResponses} عضو واجد شرایط دیگر گروه لازم است.",
+  "answerAnonymously": "پاسخ ناشناس",
+  "groupHealthEligibilityPrivacy": "هویت شما فقط برای بررسی واجد شرایط بودن و صدور یک اعتبار پاسخ استفاده می‌شود. پاسخ‌های ارسال‌شده شامل هویت نشست شما نیستند.",
+  "feedbackEligibilityPrivacy": "هویت شما برای بررسی واجد شرایط بودن و صدور یک اعتبار پاسخ استفاده می‌شود. خودِ ارسال بازخورد، توکن نشست شما را ارسال نمی‌کند.",
+  "closingAfterThreshold": "پس از رسیدن به حد نصاب حریم خصوصی، امکان بستن فعال می‌شود.",
+  "extendResponsePeriod": "تمدید زمان پاسخ‌گویی",
+  "deadlinePassedPartialHidden": "مهلت پیش از رسیدن به حد نصاب حریم خصوصی پایان یافت. نتایج ناقص همچنان مخفی می‌مانند.",
+  "deadlinePassedCreatorAction": "مهلت پیش از دریافت تعداد کافی پاسخ پایان یافت. سازنده دور می‌تواند آن را تمدید کند یا بدون نتیجه پایان دهد.",
+  "viewAggregatedResults": "مشاهده نتایج تجمیعی",
+  "closedWithoutResultsMessage": "این دور بدون نتیجه پایان یافت زیرا حد نصاب حریم خصوصی به دست نیامد.",
+  "roundNotAcceptingResponses": "این دور در حال حاضر پاسخ جدید نمی‌پذیرد.",
+  "roundLifecycle": "چرخه دور",
+  "responseDeadlineNotSet": "مهلت پاسخ‌گویی: هنوز تعیین نشده",
+  "responseDeadline": "مهلت پاسخ‌گویی: {value}",
+  "deadlineReached": "مهلت پایان یافته است",
+  "timeRemainingDays": "زمان باقی‌مانده: {days} روز و {hours} ساعت",
+  "timeRemainingHours": "زمان باقی‌مانده: {hours} ساعت و {minutes} دقیقه",
+  "timeRemainingMinutes": "زمان باقی‌مانده: {minutes} دقیقه",
+  "responsesReceived": "پاسخ‌های دریافت‌شده: {count}",
+  "minimumRequired": "حداقل لازم: {count}",
+  "privacyThresholdReached": "حد نصاب حریم خصوصی به دست آمده است.",
+  "privacyThresholdNotReached": "حد نصاب حریم خصوصی هنوز به دست نیامده است.",
+  "anonymousCountOnly": "فقط تعداد پاسخ‌های ناشناس نمایش داده می‌شود و هویت پاسخ‌دهندگان آشکار نمی‌شود.",
+  "@roundListSubtitle": {
+    "placeholders": {
+      "status": {
+        "type": "String"
+      },
+      "minResponses": {
+        "type": "int"
+      }
+    }
+  },
+  "@openingGroupHealthRequirement": {
+    "placeholders": {
+      "minResponses": {
+        "type": "int"
+      }
+    }
+  },
+  "@openingFeedbackRequirement": {
+    "placeholders": {
+      "minResponses": {
+        "type": "int"
+      }
+    }
+  },
+  "@responseDeadline": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "@timeRemainingDays": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      },
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "@timeRemainingHours": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      },
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "@timeRemainingMinutes": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "@responsesReceived": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@minimumRequired": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "anonymousGroupAssessment": "ارزیابی ناشناس گروه",
+  "anonymousFeedback": "بازخورد ناشناس",
+  "feedbackPrivacyNote": "روی رفتارهای قابل مشاهده تمرکز کنید. در پاسخ‌های متنی نام یا اطلاعات شناسایی‌کننده وارد نکنید.",
+  "chooseScore": "یک امتیاز انتخاب کنید",
+  "chooseOption": "یک گزینه انتخاب کنید",
+  "chooseAtLeastOneOption": "حداقل یک گزینه انتخاب کنید",
+  "enterResponse": "پاسخ را وارد کنید",
+  "unsupportedQuestionType": "نوع پرسش پشتیبانی نمی‌شود: {kind}",
+  "submitPrivately": "ارسال خصوصی",
+  "yourFeedbackRequest": "درخواست بازخورد شما",
+  "anonymousFeedbackRequest": "درخواست بازخورد ناشناس",
+  "statusValue": "وضعیت: {status}",
+  "privacyThresholdResponses": "حد نصاب حریم خصوصی: {count} پاسخ",
+  "creatorCanParticipate": "شما این ارزیابی را ایجاد کرده‌اید و می‌توانید به‌صورت ناشناس نیز شرکت کنید.",
+  "eligibleMembersCanParticipate": "اعضای واجد شرایط گروه می‌توانند به‌صورت ناشناس شرکت کنند.",
+  "ratingRange": "امتیازدهی {min} تا {max}",
+  "singleChoiceOptions": "تک‌گزینه‌ای · {count} گزینه",
+  "multipleChoiceOptions": "چندگزینه‌ای · {count} گزینه",
+  "requiredShortText": "متن کوتاه الزامی",
+  "optionalShortText": "متن کوتاه اختیاری",
+  "requiredLongText": "متن بلند الزامی",
+  "optionalLongText": "متن بلند اختیاری",
+  "informationOnly": "فقط اطلاعاتی",
+  "@unsupportedQuestionType": {
+    "placeholders": {
+      "kind": {
+        "type": "String"
+      }
+    }
+  },
+  "@statusValue": {
+    "placeholders": {
+      "status": {
+        "type": "String"
+      }
+    }
+  },
+  "@privacyThresholdResponses": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@ratingRange": {
+    "placeholders": {
+      "min": {
+        "type": "int"
+      },
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "@singleChoiceOptions": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@multipleChoiceOptions": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "coreFeedbackName": "بازخورد سازنده پایه",
+  "coreFeedbackDescription": "پرسش‌نامه داخلی برای بازخورد سازنده و بهبود فردی.",
+  "coreFeedbackCommunication": "شفاف و صادقانه ارتباط برقرار می‌کند.",
+  "coreFeedbackListening": "با دقت گوش می‌دهد و باعث می‌شود دیگران احساس کنند شنیده می‌شوند.",
+  "coreFeedbackReliability": "به تعهدات خود عمل می‌کند و می‌توان روی او حساب کرد.",
+  "coreFeedbackEmpathy": "همدلی نشان می‌دهد و احساسات دیگران را در نظر می‌گیرد.",
+  "coreFeedbackBoundaries": "به مرزهای شخصی و تفاوت‌ها احترام می‌گذارد.",
+  "coreFeedbackConflict": "اختلاف‌نظر را بدون تحقیر، تهدید یا تشدید غیرضروری مدیریت می‌کند.",
+  "coreFeedbackSupportiveness": "بدون ایجاد فشار، طرد یا وابستگی ناسالم از دیگران حمایت می‌کند.",
+  "coreFeedbackImprovement": "چه کاری را می‌توانم متفاوت انجام دهم تا تعاملاتمان بهتر شود؟ از نام یا اطلاعات شناسایی‌کننده استفاده نکنید.",
+  "coreGroupHealthName": "سلامت گروه",
+  "coreGroupHealthDescription": "پرسش‌نامه ناشناس داخلی برای ارزیابی پویایی و روابط گروه.",
+  "coreGroupHealthCommunication": "افراد این گروه موضوعات مهم را شفاف و صادقانه با یکدیگر در میان می‌گذارند.",
+  "coreGroupHealthListening": "افراد به یکدیگر گوش می‌دهند و دیدگاه‌های متفاوت می‌توانند بیان شوند.",
+  "coreGroupHealthSafety": "افراد می‌توانند بدون تمسخر، تهدید یا تلافی با یکدیگر مخالفت کنند.",
+  "coreGroupHealthReliability": "افراد معمولاً به تعهدات خود نسبت به گروه عمل می‌کنند.",
+  "coreGroupHealthSupport": "افراد زمانی که به‌طور منطقی نیاز باشد به یکدیگر کمک می‌کنند.",
+  "coreGroupHealthConflict": "مشکلات و اختلاف‌نظرها به‌صورت سازنده مدیریت می‌شوند.",
+  "coreGroupHealthBoundaries": "به مرزهای شخصی و تفاوت‌ها احترام گذاشته می‌شود.",
+  "coreGroupHealthImprovement": "این گروه چه چیزی را می‌تواند بهتر کند؟ از نام یا اطلاعات شناسایی‌کننده استفاده نکنید.",
+  "aggregatedResults": "نتایج تجمیعی",
+  "resultsNotAvailable": "نتایج در دسترس نیست",
+  "responseCount": "{count} پاسخ",
+  "aggregatedResultsPrivacy": "نتایج فقط پس از رسیدن به حد نصاب حریم خصوصی و به‌صورت تجمیعی نمایش داده می‌شوند.",
+  "noAnswers": "بدون پاسخ",
+  "averageValue": "میانگین {value}",
+  "noCommentsSubmitted": "هیچ نظری ارسال نشده است.",
+  "historyUnavailable": "تاریخچه در دسترس نیست",
+  "noHistoryYet": "هنوز تاریخچه‌ای وجود ندارد",
+  "noHistoryMessage": "برای ایجاد تاریخچه، یک ارزیابی سلامت گروه را تکمیل کنید.",
+  "groupHealthHistoryExplanation": "هر مورد نشان‌دهنده پاسخ‌های تجمیعی یک ارزیابی بسته‌شده است که به حد نصاب حریم خصوصی رسیده است. تغییرات ممکن است هم بازتاب برداشت افراد و هم تغییر اعضای گروه باشند. هیچ امتیاز کلی برای سلامت گروه محاسبه نمی‌شود.",
+  "aggregatedResponseCount": "{count} پاسخ تجمیعی",
+  "noChange": "بدون تغییر",
+  "versusPrevious": "{value} نسبت به دوره قبل",
+  "playfulReflection": "برداشت دوستانه",
+  "playfulDisclaimer": "یک خلاصه سرگرم‌کننده از بازخوردهای تجمیعی است — نه ارزیابی شخصیت.",
+  "thoughtfulOwl": "جغد اندیشمند",
+  "helpingOctopus": "اختاپوس یاری‌رسان",
+  "clearSignalFox": "روباه شفاف",
+  "steadyTurtle": "لاک‌پشت قابل‌اعتماد",
+  "respectfulHedgehog": "جوجه‌تیغی محترم",
+  "calmElephant": "فیل آرام",
+  "balancedCapybara": "کاپیبارای متعادل",
+  "balancedPlayfulMessage": "قوی‌ترین نشانه‌ها به یکدیگر نزدیک‌اند، بنابراین در این دور هیچ بُعد مشخصی به‌طور واضح برجسته نیست.",
+  "personalPlayfulMessage": "قوی‌ترین نشانه تجمیعی شما «{prompt}» بود ({average}/۵).",
+  "groupPlayfulMessage": "قوی‌ترین نشانه تجمیعی گروه «{prompt}» بود ({average}/۵).",
+  "@responseCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@aggregatedResponseCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@averageValue": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "@versusPrevious": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "@personalPlayfulMessage": {
+    "placeholders": {
+      "prompt": {
+        "type": "String"
+      },
+      "average": {
+        "type": "String"
+      }
+    }
+  },
+  "@groupPlayfulMessage": {
+    "placeholders": {
+      "prompt": {
+        "type": "String"
+      },
+      "average": {
+        "type": "String"
+      }
+    }
+  },
+  "newQuestionnaire": "پرسش‌نامه جدید",
+  "questionnairePrivacyNote": "نکته حریم خصوصی: از پاسخ‌دهندگان نام، حروف اول نام، نشانی، تاریخ تولد یا اطلاعات شناسایی‌کننده دیگر نخواهید. ذخیره‌سازی ناشناس نمی‌تواند مانع شود که فرد در متن پاسخ خودش را معرفی کند.",
+  "somethingWentWrong": "مشکلی پیش آمد.",
+  "couldNotSaveQuestionnaire": "ذخیره پرسش‌نامه ممکن نشد.",
+  "builtIn": "داخلی",
+  "statusPublished": "منتشرشده",
+  "versionBlocks": "نسخه {version} · {count} بلوک",
+  "view": "مشاهده",
+  "editDraft": "ویرایش پیش‌نویس",
+  "publish": "انتشار",
+  "newVersion": "نسخه جدید",
+  "editorPrivacyNote": "از پرسش‌هایی که اطلاعات شناسایی‌کننده درخواست می‌کنند خودداری کنید. رفتارهای قابل مشاهده و گزینه‌های محدود را به متن آزادِ قابل شناسایی ترجیح دهید.",
+  "questionnaireTitle": "عنوان پرسش‌نامه",
+  "questionnaireTitleExample": "مثال: ارتباط و همکاری تیمی",
+  "enterTitle": "یک عنوان وارد کنید",
+  "descriptionInstructionsOptional": "توضیحات / راهنما (اختیاری)",
+  "descriptionExample": "مثال: به نحوه همکاری ما در ماه گذشته فکر کنید.",
+  "addBlock": "افزودن بلوک",
+  "saveDraft": "ذخیره پیش‌نویس",
+  "blockNumber": "بلوک {number}",
+  "type": "نوع",
+  "ratingScale": "مقیاس امتیازدهی",
+  "singleChoice": "تک‌گزینه‌ای",
+  "multipleChoice": "چندگزینه‌ای",
+  "shortText": "متن کوتاه",
+  "longText": "متن بلند",
+  "descriptionInformation": "توضیح / اطلاعات",
+  "scaleHelper": "مقیاس امتیازدهی: برای الگوهای قابل اندازه‌گیری مانند شفافیت ارتباط مناسب است.",
+  "singleChoiceHelper": "تک‌گزینه‌ای: پاسخ‌دهنده دقیقاً یک گزینه را انتخاب می‌کند.",
+  "multipleChoiceHelper": "چندگزینه‌ای: پاسخ‌دهنده می‌تواند چند گزینه را انتخاب کند.",
+  "shortTextHelper": "متن کوتاه: مناسب یک مشاهده یا پیشنهاد مختصر.",
+  "longTextHelper": "متن بلند: زمانی مناسب است که پاسخ سازنده و دقیق‌تری لازم باشد.",
+  "descriptionHelper": "فقط اطلاعاتی: به پاسخ‌دهنده نمایش داده می‌شود و پاسخی دریافت نمی‌کند.",
+  "informationText": "متن اطلاعاتی",
+  "question": "پرسش",
+  "informationTextExample": "مثال: پیش از پاسخ دادن به پرسش‌های بعدی این متن را بخوانید.",
+  "questionBehaviorHelper": "پرسش را درباره رفتار قابل مشاهده نگه دارید، نه شخصیت یا هویت.",
+  "blockCannotBeBlank": "این بلوک نمی‌تواند خالی باشد",
+  "required": "الزامی",
+  "minimum": "حداقل",
+  "maximum": "حداکثر",
+  "maxMustExceedMin": "حداکثر باید بیشتر از حداقل باشد",
+  "optionsOnePerLine": "گزینه‌ها (هر گزینه در یک خط)",
+  "optionsExample": "مثال: به‌ندرت\nگاهی\nاغلب",
+  "addAtLeastTwoOptions": "حداقل دو گزینه اضافه کنید",
+  "optionOne": "گزینه ۱",
+  "optionTwo": "گزینه ۲",
+  "@versionBlocks": {
+    "placeholders": {
+      "version": {
+        "type": "int"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@blockNumber": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "groupRoleOwner": "مالک",
+  "groupRoleMember": "عضو",
+  "chooseQuestionnaire": "انتخاب پرسش‌نامه",
+  "noPublishedQuestionnaires": "هیچ پرسش‌نامه منتشرشده‌ای در دسترس نیست.",
+  "somethingWentWrongTryAgain": "مشکلی پیش آمد. دوباره تلاش کنید."
+}
