@@ -196,6 +196,19 @@ http://127.0.0.1:8000/docs
 
 The supported client targets through M8 are **Web and Android**.
 
+The Flutter client supports **English, Italian, and Persian**. Supported device
+locales are selected automatically by default, and users can persist a manual
+language choice locally. Persian uses Flutter's RTL directionality.
+
+Built-in questionnaire names, descriptions, prompts, results, and group-health
+history are localized by stable questionnaire slug/question keys. Custom
+questionnaire content and free-text feedback remain exactly in the language
+authored by users; Anonymprove does not automatically translate user content.
+
+Client-side fallback errors are localized. Error details returned directly by
+the API are currently server-authored English; translating those safely requires
+stable API error codes rather than matching human-readable error strings.
+
 Install dependencies:
 
 ```bash
