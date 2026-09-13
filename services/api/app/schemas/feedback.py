@@ -56,6 +56,22 @@ class CreateFeedbackRoundRequest(ApiModel):
         return self
 
 
+class OpenFeedbackRoundRequest(ApiModel):
+    response_window_minutes: int = Field(
+        default=1440,
+        ge=15,
+        le=10080,
+    )
+
+
+class ExtendFeedbackRoundRequest(ApiModel):
+    response_window_minutes: int = Field(
+        default=1440,
+        ge=15,
+        le=10080,
+    )
+
+
 class FeedbackRoundSummary(ApiModel):
     id: UUID
     group_id: UUID
@@ -68,11 +84,21 @@ class FeedbackRoundSummary(ApiModel):
     min_responses: int
     created_at: datetime
     opened_at: datetime | None
+    response_deadline_at: datetime | None
     closed_at: datetime | None
 
 
 class FeedbackRoundDetail(FeedbackRoundSummary):
     questions: list[QuestionSummary]
+
+
+class FeedbackRoundProgress(ApiModel):
+    round_id: UUID
+    status: str
+    response_count: int
+    min_responses: int
+    threshold_met: bool
+    response_deadline_at: datetime | None
 
 
 class ResponseCredentialResponse(ApiModel):

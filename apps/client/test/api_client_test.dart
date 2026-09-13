@@ -217,6 +217,84 @@ void main() {
     expect(round.isGroupHealth, isFalse);
     expect(round.subjectUserId, 'user-1');
   });
+
+  test('opening a round sends the selected response window', () async {
+    late http.Request captured;
+
+    final client = MockClient((request) async {
+      captured = request;
+
+      return http.Response(
+        jsonEncode({
+          'id': 'round-1',
+          'groupId': 'group-1',
+          'subjectUserId': null,
+          'createdByUserId': 'user-1',
+          'questionnaireId': 'q-1',
+          'questionnaireSlug': 'core-group-health-v1',
+          'roundType': 'group_health',
+          'status': 'open',
+          'minResponses': 3,
+          'createdAt': '2026-09-13T10:00:00Z',
+          'openedAt': '2026-09-13T10:05:00Z',
+          'responseDeadlineAt': '2026-09-14T10:05:00Z',
+          'closedAt': null,
+        }),
+        200,
+        headers: {'content-type': 'application/json'},
+      );
+    });
+
+    final api = HttpAnonymproveApi(
+      baseUrl: 'http://example.invalid',
+      client: client,
+    );
+
+    final round = await api.openFeedbackRound(
+      'session-token',
+      'round-1',
+      responseWindowMinutes: 360,
+    );
+
+    expect(captured.method, 'POST');
+    expect(captured.url.path, '/api/v1/feedback-rounds/round-1/open');
+    expect(jsonDecode(captured.body), {'responseWindowMinutes': 360});
+    expect(round.responseDeadlineAt, isNotNull);
+  });
+
+  test('parses creator round progress', () async {
+    final client = MockClient((request) async {
+      expect(request.url.path, '/api/v1/feedback-rounds/round-1/progress');
+
+      return http.Response(
+        jsonEncode({
+          'roundId': 'round-1',
+          'status': 'open',
+          'responseCount': 2,
+          'minResponses': 3,
+          'thresholdMet': false,
+          'responseDeadlineAt': '2026-09-14T10:05:00Z',
+        }),
+        200,
+        headers: {'content-type': 'application/json'},
+      );
+    });
+
+    final api = HttpAnonymproveApi(
+      baseUrl: 'http://example.invalid',
+      client: client,
+    );
+
+    final progress = await api.getFeedbackRoundProgress(
+      'session-token',
+      'round-1',
+    );
+
+    expect(progress.responseCount, 2);
+    expect(progress.minResponses, 3);
+    expect(progress.thresholdMet, isFalse);
+    expect(progress.responseDeadlineAt, isNotNull);
+  });
 }
 
 String? _header(http.Request request, String name) {

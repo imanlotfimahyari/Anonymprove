@@ -1,3 +1,4 @@
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from fastapi.testclient import TestClient
@@ -5,7 +6,13 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
-from app.models.feedback import AnonymousResponse, Answer, CredentialClaim, ResponseCredential
+from app.models.feedback import (
+    AnonymousResponse,
+    Answer,
+    CredentialClaim,
+    FeedbackRound,
+    ResponseCredential,
+)
 
 
 def _user(client: TestClient) -> dict[str, str]:
@@ -170,6 +177,7 @@ def test_member_can_create_list_and_read_draft_round(client: TestClient) -> None
     round_ = _round(client, owner, group)
     assert round_["status"] == "draft"
     assert round_["subjectUserId"] == owner["userId"]
+    assert round_["responseDeadlineAt"] is None
 
     listed = client.get(
         f"/api/v1/groups/{group['id']}/feedback-rounds",
@@ -406,7 +414,9 @@ def test_results_are_thresholded_and_aggregated(client: TestClient) -> None:
     assert "responses" not in body
 
 
-def test_results_remain_hidden_when_closed_below_threshold(client: TestClient) -> None:
+def test_results_remain_hidden_when_manual_close_is_below_threshold(
+    client: TestClient,
+) -> None:
     owner, members, group = _group_with_members(client)
     round_ = _round(client, owner, group)
     _open(client, owner, round_)
@@ -414,13 +424,21 @@ def test_results_remain_hidden_when_closed_below_threshold(client: TestClient) -
     token = _claim(client, members[0], round_)
     _submit(client, round_, token, _answers(detail, 4))
 
-    client.post(f"/api/v1/feedback-rounds/{round_['id']}/close", headers=_auth(owner))
+    close = client.post(
+        f"/api/v1/feedback-rounds/{round_['id']}/close",
+        headers=_auth(owner),
+    )
+
+    assert close.status_code == 409
+    assert close.json()["detail"] == "Minimum response threshold not met"
+
     results = client.get(
         f"/api/v1/feedback-rounds/{round_['id']}/results",
         headers=_auth(owner),
     )
+
     assert results.status_code == 409
-    assert results.json()["detail"] == "Minimum response threshold not met"
+    assert results.json()["detail"] == "Results are available only after the round is closed"
 
 
 def test_non_subject_cannot_close_or_read_results(client: TestClient) -> None:
@@ -687,3 +705,207 @@ def test_privacy_sensitive_feedback_routes_are_not_request_logged(
     assert "/responses" not in messages
     assert token not in messages
     assert private_text not in messages
+
+
+def _expire_round_in_database(
+    db: Session,
+    round_: dict[str, object],
+) -> None:
+    feedback_round = db.get(FeedbackRound, UUID(str(round_["id"])))
+    assert feedback_round is not None
+    feedback_round.response_deadline_at = datetime.now(UTC) - timedelta(minutes=1)
+    db.commit()
+
+
+def test_open_round_sets_default_response_deadline(
+    client: TestClient,
+) -> None:
+    owner, _, group = _group_with_members(client)
+    round_ = _round(client, owner, group)
+
+    response = client.post(
+        f"/api/v1/feedback-rounds/{round_['id']}/open",
+        headers=_auth(owner),
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+
+    assert body["status"] == "open"
+    assert body["openedAt"] is not None
+    assert body["responseDeadlineAt"] is not None
+
+    opened_at = datetime.fromisoformat(body["openedAt"])
+    deadline = datetime.fromisoformat(body["responseDeadlineAt"])
+
+    assert timedelta(hours=23, minutes=59) < deadline - opened_at
+    assert deadline - opened_at <= timedelta(hours=24, seconds=1)
+
+
+def test_creator_can_read_anonymous_response_progress(
+    client: TestClient,
+) -> None:
+    owner, members, group = _group_with_members(client)
+    round_ = _round(client, owner, group)
+    _open(client, owner, round_)
+
+    before = client.get(
+        f"/api/v1/feedback-rounds/{round_['id']}/progress",
+        headers=_auth(owner),
+    )
+
+    assert before.status_code == 200
+    assert before.json()["responseCount"] == 0
+    assert before.json()["thresholdMet"] is False
+
+    detail = _detail(client, members[0], round_)
+    token = _claim(client, members[0], round_)
+    _submit(client, round_, token, _answers(detail, 4, "Helpful."))
+
+    after = client.get(
+        f"/api/v1/feedback-rounds/{round_['id']}/progress",
+        headers=_auth(owner),
+    )
+
+    assert after.status_code == 200
+    assert after.json()["responseCount"] == 1
+    assert after.json()["thresholdMet"] is False
+
+
+def test_non_creator_cannot_read_progress(
+    client: TestClient,
+) -> None:
+    owner, members, group = _group_with_members(client)
+    round_ = _round(client, owner, group)
+    _open(client, owner, round_)
+
+    response = client.get(
+        f"/api/v1/feedback-rounds/{round_['id']}/progress",
+        headers=_auth(members[0]),
+    )
+
+    assert response.status_code == 404
+
+
+def test_deadline_expires_round_below_threshold(
+    client: TestClient,
+    db: Session,
+) -> None:
+    owner, members, group = _group_with_members(client)
+    round_ = _round(client, owner, group)
+    _open(client, owner, round_)
+
+    _expire_round_in_database(db, round_)
+
+    response = client.get(
+        f"/api/v1/feedback-rounds/{round_['id']}",
+        headers=_auth(members[0]),
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "expired"
+
+    claim = client.post(
+        f"/api/v1/feedback-rounds/{round_['id']}/credentials",
+        headers=_auth(members[0]),
+    )
+
+    assert claim.status_code == 409
+
+
+def test_creator_can_extend_expired_round(
+    client: TestClient,
+    db: Session,
+) -> None:
+    owner, _, group = _group_with_members(client)
+    round_ = _round(client, owner, group)
+    _open(client, owner, round_)
+
+    _expire_round_in_database(db, round_)
+
+    progress = client.get(
+        f"/api/v1/feedback-rounds/{round_['id']}/progress",
+        headers=_auth(owner),
+    )
+    assert progress.status_code == 200
+    assert progress.json()["status"] == "expired"
+
+    response = client.post(
+        f"/api/v1/feedback-rounds/{round_['id']}/extend",
+        headers=_auth(owner),
+        json={"responseWindowMinutes": 60},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "open"
+    assert response.json()["responseDeadlineAt"] is not None
+
+
+def test_creator_can_end_expired_round_without_results(
+    client: TestClient,
+    db: Session,
+) -> None:
+    owner, _, group = _group_with_members(client)
+    round_ = _round(client, owner, group)
+    _open(client, owner, round_)
+
+    _expire_round_in_database(db, round_)
+
+    response = client.post(
+        f"/api/v1/feedback-rounds/{round_['id']}/end-without-results",
+        headers=_auth(owner),
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "closed_no_results"
+
+    results = client.get(
+        f"/api/v1/feedback-rounds/{round_['id']}/results",
+        headers=_auth(owner),
+    )
+
+    assert results.status_code == 409
+
+
+def test_deadline_auto_closes_when_threshold_is_met(
+    client: TestClient,
+    db: Session,
+) -> None:
+    owner, members, group = _group_with_members(client)
+    round_ = _round(client, owner, group)
+    _open(client, owner, round_)
+
+    for member in members[:3]:
+        detail = _detail(client, member, round_)
+        token = _claim(client, member, round_)
+        _submit(
+            client,
+            round_,
+            token,
+            _answers(detail, 5, "Useful feedback."),
+        )
+
+    _expire_round_in_database(db, round_)
+
+    response = client.get(
+        f"/api/v1/feedback-rounds/{round_['id']}",
+        headers=_auth(owner),
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "closed"
+
+    results = client.get(
+        f"/api/v1/feedback-rounds/{round_['id']}/results",
+        headers=_auth(owner),
+    )
+
+    assert results.status_code == 200
+    assert results.json()["responseCount"] == 3
+
+
+def test_feedback_round_status_column_fits_terminal_state() -> None:
+    status_type = FeedbackRound.__table__.c.status.type
+
+    assert status_type.length is not None
+    assert status_type.length >= len("closed_no_results")

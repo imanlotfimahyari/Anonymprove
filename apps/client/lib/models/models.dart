@@ -207,6 +207,7 @@ class FeedbackRoundSummary {
     required this.minResponses,
     required this.createdAt,
     this.openedAt,
+    this.responseDeadlineAt,
     this.closedAt,
   });
 
@@ -221,6 +222,7 @@ class FeedbackRoundSummary {
   final int minResponses;
   final DateTime createdAt;
   final DateTime? openedAt;
+  final DateTime? responseDeadlineAt;
   final DateTime? closedAt;
 
   bool get isGroupHealth => roundType == 'group_health';
@@ -239,6 +241,7 @@ class FeedbackRoundSummary {
       minResponses: json['minResponses'] as int,
       createdAt: DateTime.parse(json['createdAt'] as String),
       openedAt: _parseOptionalDate(json['openedAt']),
+      responseDeadlineAt: _parseOptionalDate(json['responseDeadlineAt']),
       closedAt: _parseOptionalDate(json['closedAt']),
     );
   }
@@ -258,6 +261,7 @@ class FeedbackRoundDetail extends FeedbackRoundSummary {
     required super.createdAt,
     required this.questions,
     super.openedAt,
+    super.responseDeadlineAt,
     super.closedAt,
   });
 
@@ -276,10 +280,40 @@ class FeedbackRoundDetail extends FeedbackRoundSummary {
       minResponses: json['minResponses'] as int,
       createdAt: DateTime.parse(json['createdAt'] as String),
       openedAt: _parseOptionalDate(json['openedAt']),
+      responseDeadlineAt: _parseOptionalDate(json['responseDeadlineAt']),
       closedAt: _parseOptionalDate(json['closedAt']),
       questions: (json['questions'] as List<dynamic>)
           .map((item) => QuestionSummary.fromJson(item as Map<String, dynamic>))
           .toList(growable: false),
+    );
+  }
+}
+
+class FeedbackRoundProgress {
+  const FeedbackRoundProgress({
+    required this.roundId,
+    required this.status,
+    required this.responseCount,
+    required this.minResponses,
+    required this.thresholdMet,
+    this.responseDeadlineAt,
+  });
+
+  final String roundId;
+  final String status;
+  final int responseCount;
+  final int minResponses;
+  final bool thresholdMet;
+  final DateTime? responseDeadlineAt;
+
+  factory FeedbackRoundProgress.fromJson(Map<String, dynamic> json) {
+    return FeedbackRoundProgress(
+      roundId: json['roundId'] as String,
+      status: json['status'] as String,
+      responseCount: json['responseCount'] as int,
+      minResponses: json['minResponses'] as int,
+      thresholdMet: json['thresholdMet'] as bool,
+      responseDeadlineAt: _parseOptionalDate(json['responseDeadlineAt']),
     );
   }
 }
