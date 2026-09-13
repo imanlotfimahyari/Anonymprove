@@ -170,6 +170,7 @@ def test_member_can_create_list_and_read_draft_round(client: TestClient) -> None
     round_ = _round(client, owner, group)
     assert round_["status"] == "draft"
     assert round_["subjectUserId"] == owner["userId"]
+    assert round_["responseDeadlineAt"] is None
 
     listed = client.get(
         f"/api/v1/groups/{group['id']}/feedback-rounds",

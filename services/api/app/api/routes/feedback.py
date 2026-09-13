@@ -167,6 +167,7 @@ def _round_summary(
         min_responses=feedback_round.min_responses,
         created_at=feedback_round.created_at,
         opened_at=feedback_round.opened_at,
+        response_deadline_at=feedback_round.response_deadline_at,
         closed_at=feedback_round.closed_at,
     )
 

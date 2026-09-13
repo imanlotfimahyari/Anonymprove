@@ -88,7 +88,7 @@ class FeedbackRound(Base):
     __tablename__ = "feedback_rounds"
     __table_args__ = (
         CheckConstraint(
-            "status IN ('draft', 'open', 'closed')",
+            "status IN ('draft', 'open', 'closed', 'expired', 'closed_no_results')",
             name="ck_feedback_rounds_status",
         ),
         CheckConstraint(
@@ -155,6 +155,10 @@ class FeedbackRound(Base):
         server_default=func.now(),
     )
     opened_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    response_deadline_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
     )
